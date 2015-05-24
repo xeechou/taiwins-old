@@ -1,3 +1,4 @@
+#include "utils.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,7 +21,7 @@
 #include <xf86drm.h>
 
 #ifndef KDSKBMUTE
-#define KDSKBMUTE	0x4B51
+#define KDSKBMUTE	0x4B51	/* not gonna work for now */
 #endif
 
 static const char *TTY0 = "/dev/tty0";
@@ -34,6 +35,7 @@ typedef struct tw_launcher {
 
 	int kb_mode;	//This is mode that we store for recovering KD_TEXT
 } tw_launcher;
+
 
 static int quit(tw_launcher *tw)
 {
@@ -50,6 +52,7 @@ static int quit(tw_launcher *tw)
 		return -1;
 	return 0;
 }
+
 static int setup_tty(tw_launcher *tw)
 {
 	struct stat st;
@@ -84,7 +87,8 @@ static int setup_tty(tw_launcher *tw)
 
 	if (ioctl(tw->tty, KDSETMODE, KD_GRAPHICS))
 		return -1;
-	//lets check if it works if we unmute the keyboad
+
+	/* now we need to unmute the keyboard */
 	if (ioctl(tw->tty, KDSKBMUTE, 0) &&
 	    ioctl(tw->tty, KDSKBMODE, tw->kb_mode))
 		return -1;
@@ -152,15 +156,14 @@ handle_signal(tw_launcher *tw, int signo)
 		break;
 	case SIGUSR1:
 		signal_recv += 1;
-		//close_input_fds(wl);
+		//TW_DEBUG_INFO("catch signal SIGUSR1\n");
 		//drmDropMaster(tw->tty);
 		ioctl(tw->tty, VT_RELDISP, 1);
-		printf("sdaf\n");
 		break;
 	case SIGUSR2:
 		signal_recv += 1;
+		//TW_DEBUG_INFO("catch signal SIGUSR2\n");
 		ioctl(tw->tty, VT_RELDISP, VT_ACKACQ);
-		printf("sdaf\n");
 		//drmSetMaster(tw->tty);
 		//send_reply(wl, WESTON_LAUNCHER_ACTIVATE);
 		break;
@@ -182,6 +185,7 @@ int main()
 		printf("error.\n");
 		return 0;
 	}
+	init_debug();
 	//ret = setup_signals(&tw);
 	//if (ret) {
 	//	quit(&tw);
@@ -223,12 +227,6 @@ int main()
 			}
 			ret = handle_signal(&tw, fds.ssi_signo);
 		}
-		//sprintf(some, "%d\t", signal_recv);
-		//int log_fd = open("/tmp/tw_log", O_APPEND);
-		//write(log_fd, some, 2);
-		//close(log_fd);
-		//if (ret)
-		//quit(&tw);
 	}
 	ret = quit(&tw);
 	printf("%d %d %d\n", STDIN_FILENO, tw.signalfd, signal_recv);
