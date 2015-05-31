@@ -1,0 +1,14 @@
+DONE:
++. Setup connectors, encoders and crtcs.
+
++. Finished vt_handle problems. Now taiwins is like weston, have two process.
+   The parent process exists only for listening to SIGUSR1 and SIGUSR2. We will
+   miagrate to use wl_signal to handle SIGUSR1 and SIGUSR2.
+
+DOING:
++. Use udev to discover major graphic card.
++. Drawing a picture on screen.
+
+TODO:
++. Use wayland apis, eg. wl_signal and wl_listener to handle signals.
+
