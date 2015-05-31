@@ -25,38 +25,78 @@
 #endif
 
 static const char *TTY0 = "/dev/tty0";
-static int signal_recv = 0;
 
 typedef struct tw_launcher {
 	int tty;	//init to 0
 	int ttynr;
 	char ttyname[16];
 	int signalfd;
+	int child;
 
 	int kb_mode;	//This is mode that we store for recovering KD_TEXT
 } tw_launcher;
 
+/* helper functions that help you know what you are doing */
+static int mute_keyboard(tw_launcher *tw)
+{
+	return (ioctl(tw->tty, KDSKBMUTE, 1) &&
+		ioctl(tw->tty, KDSKBMODE, K_OFF));
+}
+
+static int umute_keyboard(tw_launcher *tw)
+{
+	return (ioctl(tw->tty, KDSKBMUTE, 0) &&
+		ioctl(tw->tty, KDSKBMODE, tw->kb_mode));
+}
+
+static int save_keyboard_mode(tw_launcher *tw)
+{
+	return ioctl(tw->tty, KDGKBMODE, &tw->kb_mode);
+}
+static int kd_graphic(tw_launcher *tw)
+{
+	return ioctl(tw->tty, KDSETMODE, KD_GRAPHICS);
+}
+static int kd_text(tw_launcher *tw)
+{
+	return ioctl(tw->tty, KDSETMODE, KD_TEXT);
+}
+
+static int vt_process(tw_launcher *tw)
+{
+	struct vt_mode mode = {0};
+	mode.mode = VT_PROCESS;
+	mode.relsig = SIGUSR1;
+	mode.acqsig = SIGUSR2;
+	return ioctl(tw->tty, VT_SETMODE, &mode);
+}
+static int vt_auto(tw_launcher *tw)
+{
+	struct vt_mode mode = {0};
+	mode.mode = VT_AUTO;
+	return ioctl(tw->tty, VT_SETMODE, &mode);
+}
 
 static int quit(tw_launcher *tw)
 {
-	/* recover the the context that we hade before */
-	struct vt_mode mode = {0};
-
-	if (ioctl(tw->tty, KDSKBMUTE, 0) &&
-	    ioctl(tw->tty, KDSKBMODE, tw->kb_mode))
+	if (umute_keyboard(tw)) {
+		TW_DEBUG_INFO("Failed to umute keyboard\n");
 		return -1;
-	if (ioctl(tw->tty, KDSETMODE, KD_TEXT))
+	}
+	if (kd_text(tw)) {
+		TW_DEBUG_INFO("Failed to return text mode \n");
 		return -1;
-	mode.mode = VT_AUTO;
-	if (ioctl(tw->tty, VT_SETMODE, &mode) < 0)
+	}
+	if (vt_auto(tw)) {
+		TW_DEBUG_INFO("Failed to return auto mode \n");
 		return -1;
+	}
 	return 0;
 }
 
 static int setup_tty(tw_launcher *tw)
 {
 	struct stat st;
-	struct vt_mode mode = {0};
 	char ttyname[16];
 	int fd = -1;
 	int found_tty;
@@ -77,25 +117,21 @@ static int setup_tty(tw_launcher *tw)
 	else
 		return -1;	//TODO, open a avaliable terminal
 
-	/* mute keyboard, before we done set signals */
-	if (ioctl(tw->tty, KDGKBMODE, &tw->kb_mode))
+	/* dealing with keyboads, vts */
+	if (save_keyboard_mode(tw))
 		return -1;
-	if (ioctl(tw->tty, KDSKBMUTE, 1) &&
-	    ioctl(tw->tty, KDSKBMODE, K_OFF))
+	if (mute_keyboard(tw))
 		return -1;
 
-
-	if (ioctl(tw->tty, KDSETMODE, KD_GRAPHICS))
+	if (kd_graphic(tw))
 		return -1;
 
 	/* now we need to unmute the keyboard */
-	if (ioctl(tw->tty, KDSKBMUTE, 0) &&
-	    ioctl(tw->tty, KDSKBMODE, tw->kb_mode))
+	if (umute_keyboard(tw))
 		return -1;
-	mode.mode = VT_PROCESS;
-	mode.relsig = SIGUSR1;
-	mode.acqsig = SIGUSR2;
-	if (ioctl(tw->tty, VT_SETMODE, &mode) < 0)
+
+	/* set vts */
+	if (vt_process(tw) < 0)
 		return -1;
 
 	return 0;
@@ -103,6 +139,8 @@ static int setup_tty(tw_launcher *tw)
 
 static int setup_signals(tw_launcher *tw)
 {
+	/* setup signal here so we don't need to  
+	 * code them in main */
 	int ret;
 	sigset_t mask;
 	struct sigaction sa;
@@ -111,7 +149,11 @@ static int setup_signals(tw_launcher *tw)
 	sa.sa_handler = SIG_DFL;
 	sa.sa_flags = SA_NOCLDSTOP | SA_RESTART;
 	ret = sigaction(SIGCHLD, &sa, NULL);
+	sa.sa_handler = SIG_IGN;
+	sa.sa_flags = 0;
+	sigaction(SIGHUP, &sa, NULL);
 
+	sigaddset(&mask, SIGCHLD);
 	sigaddset(&mask, SIGINT);
 	sigaddset(&mask, SIGTERM);
 	sigaddset(&mask, SIGUSR1);
@@ -130,38 +172,27 @@ static int setup_signals(tw_launcher *tw)
 static int
 handle_signal(tw_launcher *tw, int signo)
 {
+	int pid, status;
+
 	switch (signo) {
-	//case SIGCHLD:
-	//	pid = waitpid(-1, &status, 0);
-	//	if (pid == wl->child) {
-	//		wl->child = 0;
-	//		if (WIFEXITED(status))
-	//			ret = WEXITSTATUS(status);
-	//		else if (WIFSIGNALED(status))
-	//			/*
-	//			 * If weston dies because of signal N, we
-	//			 * return 10+N. This is distinct from
-	//			 * weston-launch dying because of a signal
-	//			 * (128+N).
-	//			 */
-	//			ret = 10 + WTERMSIG(status);
-	//		else
-	//			ret = 0;
-	//		quit(wl, ret);
-	//	}
-	//	break;
-	//case SIGTERM:
+	case SIGCHLD:
+		TW_DEBUG_INFO("catch signal SIGCHLD\n");
+		pid = waitpid(-1, &status, 0);
+		if (pid == tw->child) {
+			tw->child = 0;
+			quit(tw);
+		}
+		break;
+	case SIGTERM:
 	case SIGINT:
 		return -1;
 		break;
 	case SIGUSR1:
-		signal_recv += 1;
 		//TW_DEBUG_INFO("catch signal SIGUSR1\n");
 		//drmDropMaster(tw->tty);
 		ioctl(tw->tty, VT_RELDISP, 1);
 		break;
 	case SIGUSR2:
-		signal_recv += 1;
 		//TW_DEBUG_INFO("catch signal SIGUSR2\n");
 		ioctl(tw->tty, VT_RELDISP, VT_ACKACQ);
 		//drmSetMaster(tw->tty);
@@ -186,50 +217,53 @@ int main()
 		return 0;
 	}
 	init_debug();
-	//ret = setup_signals(&tw);
-	//if (ret) {
-	//	quit(&tw);
-	//	printf("error.\n");
-	//	return 0;
-	//}
-
-	struct signalfd_siginfo fds;
-	sigset_t sigmask;
-	ssize_t s;
-
-	sigaddset(&sigmask, SIGUSR1);
-	sigaddset(&sigmask, SIGUSR2);
-	if (sigprocmask(SIG_BLOCK, &sigmask, NULL) == -1) {
+	ret = setup_signals(&tw);
+	if (ret) {
 		quit(&tw);
+		printf("error.\n");
 		return 0;
 	}
-	tw.signalfd = signalfd(-1, &sigmask, 0);
-	if (tw.signalfd == -1) {
-		quit(&tw);
-		printf("error in get signalfd\n");
-	}
 
-	struct pollfd pfd;
-	pfd.fd = tw.signalfd;
-	pfd.events = POLLIN;
 
-	int i;
-	for (;;) {
-		i = poll(&pfd, 1, -1);
-		if (i < 0)
-			return -1;
-		if (pfd.revents & POLLIN) {
-			s = read(tw.signalfd, &fds,
-				 sizeof(struct signalfd_siginfo));
-			if (s != sizeof(struct signalfd_siginfo)) {
-				quit(&tw);
-				return -1;
-			}
-			ret = handle_signal(&tw, fds.ssi_signo);
+	int child_pid = fork();
+	if (child_pid == 0) {
+		sleep(1);
+		return 0;
+	} else {
+		/* TODO:if my child process never return, I can remove else */
+		ssize_t s;
+		struct signalfd_siginfo fds;
+
+		if (setup_signals(&tw)) {
+			quit(&tw);
+			goto err;
 		}
+		tw.child = child_pid;
+
+		struct pollfd pfd;
+		pfd.fd = tw.signalfd;
+		pfd.events = POLLIN;
+
+		int i;
+		for (;;) {
+			i = poll(&pfd, 1, -1);
+			if (i < 0)
+				return -1;
+			if (pfd.revents & POLLIN) {
+				s = read(tw.signalfd, &fds,
+					 sizeof(struct signalfd_siginfo));
+				if (s != sizeof(struct signalfd_siginfo)) {
+					quit(&tw);
+					return -1;
+				}
+				ret = handle_signal(&tw, fds.ssi_signo);
+			}
+		}
+		ret = quit(&tw);
+		if (ret)
+			printf("error.\n");
 	}
-	ret = quit(&tw);
-	printf("%d %d %d\n", STDIN_FILENO, tw.signalfd, signal_recv);
-	if (ret)
-		printf("error.\n");
+	return 0;
+err:
+	return -1;
 }
