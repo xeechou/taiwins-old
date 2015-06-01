@@ -182,6 +182,7 @@ handle_signal(tw_launcher *tw, int signo)
 			tw->child = 0;
 			quit(tw);
 		}
+		return -1;
 		break;
 	case SIGTERM:
 	case SIGINT:
@@ -211,7 +212,9 @@ int main()
 {
 	tw_launcher tw;
 	memset(&tw, 0, sizeof(tw));
-	int ret = setup_tty(&tw);
+	int ret;
+
+	ret= setup_tty(&tw);
 	if (ret) {
 		printf("error.\n");
 		return 0;
@@ -244,17 +247,19 @@ int main()
 		pfd.fd = tw.signalfd;
 		pfd.events = POLLIN;
 
-		int i;
-		for (;;) {
+		int i, ret = 0;
+		while (ret == 0) {
 			i = poll(&pfd, 1, -1);
-			if (i < 0)
-				return -1;
+			if (i < 0) {
+				ret = -1;
+				break;
+			}
 			if (pfd.revents & POLLIN) {
 				s = read(tw.signalfd, &fds,
 					 sizeof(struct signalfd_siginfo));
 				if (s != sizeof(struct signalfd_siginfo)) {
-					quit(&tw);
-					return -1;
+					ret = -1;
+					break;
 				}
 				ret = handle_signal(&tw, fds.ssi_signo);
 			}
