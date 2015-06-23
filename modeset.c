@@ -1,7 +1,8 @@
-/* There are servral things need ot be done in this file.
+/* This file charges for
  * 1) modesetting
- * 2) setting up tty and the mechanism to release and pick up the context
+ * 2) manager_display
  */
+#include "renderer.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -17,49 +18,15 @@
 #include <EGL/egl.h>
 
 
-/*This struct is one per connector */;
-typedef struct fb_buffer {
-	uint32_t width;
-	uint32_t height;
-	uint32_t stride;
-	int scale;
-
-	uint32_t fb[2];
-} fb_buffer;
-typedef struct disp_info {
-	uint32_t conn;
-	uint32_t enc;	// we may not need this.
-	uint32_t crtc;
-	drmModeModeInfo mode;
-
-	//information about the 
-	uint32_t location;	/* indicate this is the (x, y)'s display */
-
-	//buffer
-	fb_buffer fb;
-} disp_info;
-typedef struct disp_array {
-	int n_disps;
-	/* This struct has the geomitry information about which connector is
-	   located. */
-	int n_vert;	/* how many displays we have vertically    */
-	int n_hori;	/* how many displays we have horizentally  */
-	struct disp_info *disps;
-} disp_array;
-
-
 /* crtc and encoder are bond together, so we have to set them together */
 static int init_crtc(int fd, drmModeRes *res,
 			    drmModeConnector *conn,
-			    disp_info *info)
+			    disp_info *info, uint32_t location)
 {
-	int i;
-	if (!conn) {
-		fprintf(stderr, "Cannot retrieve DRM connector %u:%u (%d): %m\n",
-			i, res->connectors[i], errno);
-		goto err;
-	}
 	memcpy(&info->mode, &conn->modes[0], sizeof(info->mode));
+	info->width  = info->mode.hdisplay;
+	info->height = info->mode.vdisplay;
+	info->location = location;
 
 	/* retrieve a usable encoders */
 	drmModeEncoder *enc;
@@ -71,7 +38,7 @@ static int init_crtc(int fd, drmModeRes *res,
 	if (enc) {
 		if (enc->crtc_id)
 			info->crtc = enc->crtc_id;
-	} else {
+	} else {	//let's hope this branch never get to execute
 		int i;
 		for (i = 1; i <= conn->count_encoders; i++) {
 			enc = drmModeGetEncoder(fd, conn->encoders[i]);
@@ -100,37 +67,41 @@ err:
 }
 
 
-static int init_fb(int fd, drmModeRes *res, disp_info *info)
-{
-	/* get gbm_device freed when they aren't needed */
-	struct gbm_device *gbm;
-	const char *ver, *extensions;
-	EGLint major, minor;
-	EGLDisplay dpy;		/* void * */
 
-	gbm = gbm_create_device(fd);
-	dpy = eglGetDisplay(gbm);
-	eglInitialize(dpy, &major, &minor);
-        ver = eglQueryString(dpy, EGL_VERSION);
-	printf("%s\n", ver);
-	extensions = eglQueryString(dpy, EGL_EXTENSIONS);
-	printf("%s\n", extensions);
-	if (!strstr(extensions, "EGL_KHR_surfaceless_opengl")) {
-		fprintf(stderr, "no surfaceless support, cannot initialize\n");
-		return -1;;
-	}
-	const drmModeModeInfo *mode = &info->mode;
-	//gbm_bo *bo = gbm_bo_create(gbm,)
+static uint32_t arrange_coordinates(uint32_t last)
+{
+	//range display, defaultly, we will range display from left to right
+	//a more sophisticate approach requires configure information and
+	//display information
+	//int x = last >> 16;
+	//int y = (0x0000ffff) & last;
+	//x += 1;
+	return (0x00010000) + last;
+	//return (x << 16) | (y)	//add a display horizontally
+}
+
+/* update display information everytime when assigning a new monitor */
+#define X(coor) (coor >> 16)
+#define Y(coor) (coor & 0x0000ffff)
+static uint32_t update_disp_range(uint32_t max, uint32_t coordinate)
+{
+	int x = X(coordinate);
+	int y = Y(coordinate);
+	x = (X(max) > x) ? X(max) : x;
+	y = (Y(max) > y) ? Y(max) : y;
+	return (x << 16) + y;
 }
 
 static int init_connectors(int fd, drmModeRes *res, disp_array *disp_arr)
 {
-	uint32_t n_disps;
+
 	int i, ret;
 	drmModeConnector *conn;
 	disp_info *disps = malloc(sizeof(disp_info) * res->count_connectors);
-	//disp_arr->disps = disps;
 	disp_arr->n_disps = 0;
+
+	uint32_t coordinate = 0;	//location of displays, starts at 0,0
+	uint32_t range = 0;
 
 	for (i = 0; i < res->count_connectors; i++) {
 		conn = drmModeGetConnector(fd, res->connectors[i]);
@@ -143,26 +114,50 @@ static int init_connectors(int fd, drmModeRes *res, disp_array *disp_arr)
 			drmModeFreeConnector(conn);
 			continue;
 		}
-		ret = init_crtc(fd, res, conn, &disps[disp_arr->n_disps]);
+		coordinate = arrange_coordinates(coordinate);
+		range = update_disp_range(range, coordinate);
+		ret = init_crtc(fd, res, conn, &disps[disp_arr->n_disps],
+				coordinate);
+		if (ret)
+			continue;
 		disp_arr->n_disps += 1;
 		drmModeFreeConnector(conn);
 	}
-	if (!disp_arr->n_disps)
+	if (disp_arr->n_disps == 0)
 		return -1;
 	//This will work, we shrink the size
 	disp_arr->disps = realloc(disps, sizeof(disp_arr->n_disps *
 							  sizeof(disp_info)));
 	// TODO: this function will arrange the displays in the future. Now you
 	// only use disp_arr->disps[0]
+	disp_arr->range = range;
 	return 0;
-
 }
 
 
+static int init_fb(int fd, drmModeRes *res, disp_info *info)
+{
+	int ret;
+
+	ret = init_gbm(fd, &info->rh);
+	if (ret)
+		return ret;
+	ret = init_egl(&info->rh, info->width, info->height);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int destroy_disp(disp_info *info)
+{
+	destroy_render_handler(&info->rh);
+	return 0;
+}
 
 int main()
 {
-	int ret, i;
+	int ret;
 	int fd = open("/dev/dri/card0", O_RDWR);
 	disp_array displays;
 	drmModeRes *res;
@@ -170,17 +165,18 @@ int main()
 	res = drmModeGetResources(fd);
 	if(!res) {
 		fprintf(stderr, "Failed to get DRM resources (%d)!\n", errno);
-		return -errno;
+		goto err;
 	}
 
 	ret = init_connectors(fd, res, &displays);
 	if (ret) {
 		fprintf(stderr, "Failed in first call\n");
-		return ret;
+		goto err;
 	}
 	//fprintf(stdout, "%d\n", displays.n_disps);
 	disp_info *info = &displays.disps[0];
-	//init_fb(fd, res, info);
+	init_fb(fd, res, info);
+	destroy_disp(info);
 
 	drmModeFreeResources(res);
 

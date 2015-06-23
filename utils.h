@@ -34,7 +34,7 @@ void get_time(char *time_string);
 /* file ops */
 int open_file(char *file_name);
 int close_file(int fd);
-int writen_to_file(int fd, char *msg_to_file, unsigned int msg_length);
+int write_to_file(int fd, char *msg_to_file, unsigned int msg_length);
 int readn_from_file(int fd, char *msg_from_file, unsigned int msg_length);
 
 #endif

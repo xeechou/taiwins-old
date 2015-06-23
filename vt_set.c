@@ -24,8 +24,6 @@
 #define KDSKBMUTE	0x4B51	/* not gonna work for now */
 #endif
 
-static const char *TTY0 = "/dev/tty0";
-
 typedef struct tw_launcher {
 	int tty;	//init to 0
 	int ttynr;
@@ -37,32 +35,32 @@ typedef struct tw_launcher {
 } tw_launcher;
 
 /* helper functions that help you know what you are doing */
-static int mute_keyboard(tw_launcher *tw)
+static inline int mute_keyboard(tw_launcher *tw)
 {
 	return (ioctl(tw->tty, KDSKBMUTE, 1) &&
 		ioctl(tw->tty, KDSKBMODE, K_OFF));
 }
 
-static int umute_keyboard(tw_launcher *tw)
+static inline int umute_keyboard(tw_launcher *tw)
 {
 	return (ioctl(tw->tty, KDSKBMUTE, 0) &&
 		ioctl(tw->tty, KDSKBMODE, tw->kb_mode));
 }
 
-static int save_keyboard_mode(tw_launcher *tw)
+static inline int save_keyboard_mode(tw_launcher *tw)
 {
 	return ioctl(tw->tty, KDGKBMODE, &tw->kb_mode);
 }
-static int kd_graphic(tw_launcher *tw)
+static inline int kd_graphic(tw_launcher *tw)
 {
 	return ioctl(tw->tty, KDSETMODE, KD_GRAPHICS);
 }
-static int kd_text(tw_launcher *tw)
+static inline int kd_text(tw_launcher *tw)
 {
 	return ioctl(tw->tty, KDSETMODE, KD_TEXT);
 }
 
-static int vt_process(tw_launcher *tw)
+static inline int vt_process(tw_launcher *tw)
 {
 	struct vt_mode mode = {0};
 	mode.mode = VT_PROCESS;
@@ -70,14 +68,14 @@ static int vt_process(tw_launcher *tw)
 	mode.acqsig = SIGUSR2;
 	return ioctl(tw->tty, VT_SETMODE, &mode);
 }
-static int vt_auto(tw_launcher *tw)
+static inline int vt_auto(tw_launcher *tw)
 {
 	struct vt_mode mode = {0};
 	mode.mode = VT_AUTO;
 	return ioctl(tw->tty, VT_SETMODE, &mode);
 }
 
-static int quit(tw_launcher *tw)
+static inline int quit(tw_launcher *tw)
 {
 	if (umute_keyboard(tw)) {
 		TW_DEBUG_INFO("Failed to umute keyboard\n");
@@ -93,6 +91,7 @@ static int quit(tw_launcher *tw)
 	}
 	return 0;
 }
+//Help functions end
 
 static int setup_tty(tw_launcher *tw)
 {
