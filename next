@@ -1,0 +1,4 @@
+1. we have launcher struct.
+2. we have modeset struct.
+3. we need wayland struct.
+4. then we will have compositor struct

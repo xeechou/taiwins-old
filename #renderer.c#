@@ -41,10 +41,10 @@ err:
 	return -errno;
 }
 
-static int choose_config(render_handler *rh, EGLConfig *cfg)
+static int egl_choose_config(render_handler *rh, EGLConfig *cfg)
 {
 	int i;
-	EGLint count = 0, matched = 0;
+	EGLint count;
 	EGLBoolean success;
 	EGLConfig *configs;
 
@@ -53,9 +53,8 @@ static int choose_config(render_handler *rh, EGLConfig *cfg)
 		goto err_get_config;
 	if (!(configs = calloc(count, sizeof(EGLConfig))))
 		goto err_get_config;
-	success = eglChooseConfig(rh->dpy, RENDER_ATTRIBUTES, configs, count,
-			     &matched);
-	if (!success || &matched)
+	if (!eglChooseConfig(rh->dpy, RENDER_ATTRIBUTES, configs, count,
+			     &count))
 		goto err_choose_config;
 
 	//find the suitable config
@@ -81,7 +80,7 @@ err_choose_config:
 }
 
 int init_egl(render_handler *rh, uint32_t width, uint32_t height)
-{
+  :{
 	int major, minor;
 #ifdef EGL_MESA_platform_gbm
 	rh->dpy = eglGetPlatformDisplayEXT(EGL_PLATFORM_GBM_MESA, rh->gbm,
@@ -93,7 +92,7 @@ int init_egl(render_handler *rh, uint32_t width, uint32_t height)
 		return -EINVAL;
 	eglInitialize(rh->dpy, &major, &minor);
 	eglBindAPI(EGL_OPENGL_API);
-	if (choose_config(rh, &rh->cfg))
+	if (egl_choose_config(rh, &rh->cfg))
 		return -EINVAL;
 
 	rh->native_window = gbm_surface_create(rh->gbm,

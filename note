@@ -12,3 +12,4 @@ DOING:
 TODO:
 +. Use wayland apis, eg. wl_signal and wl_listener to handle signals.
 
++. How to manager tags on different monitors?
