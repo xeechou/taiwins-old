@@ -8,6 +8,11 @@
 
 #include <gbm.h>
 #include <EGL/egl.h>
+//#ifndef EGL_EGLEXT_PROTOTYPES
+//#define EGL_EGLEXT_PROTOTYPES
+//#endif
+#include <EGL/eglext.h>
+#include <EGL/eglmesaext.h>
 #include "renderer.h"
 
 static const EGLint RENDER_ATTRIBUTES[] = {
@@ -18,6 +23,11 @@ static const EGLint RENDER_ATTRIBUTES[] = {
 	EGL_ALPHA_SIZE, 1,
 	EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
 	EGL_NONE
+};
+
+static const EGLint VISUAL_IDS[] = {
+	GBM_FORMAT_XRGB8888,
+	GBM_FORMAT_ARGB8888
 };
 
 //static EGLint PBUFFER_ATTRIBUTES[] = {
@@ -41,12 +51,30 @@ err:
 	return -errno;
 }
 
-static int choose_config(render_handler *rh, EGLConfig *cfg)
+static int match_visual_id(EGLDisplay display, EGLint visual_id, EGLConfig
+		*configs, const int count)
+{
+	int i;
+	for (i = 0; i < count; i++) {
+		EGLint gbm_format;
+		if (!eglGetConfigAttrib(display, configs[i], EGL_NATIVE_VISUAL_ID,
+					&gbm_format))
+			continue;
+		if (gbm_format == visual_id)
+			return i;
+	}
+	return -1;
+
+}
+
+static int choose_config(render_handler *rh, EGLConfig *cfg, const EGLint
+		*visual_id, const int n_ids)
 {
 	int i;
 	EGLint count = 0, matched = 0;
 	EGLBoolean success;
 	EGLConfig *configs;
+	int config_id = -1;
 
 	success = eglGetConfigs(rh->dpy, NULL, 0, &count);
 	if (!success || count < 1)
@@ -55,28 +83,28 @@ static int choose_config(render_handler *rh, EGLConfig *cfg)
 		goto err_get_config;
 	success = eglChooseConfig(rh->dpy, RENDER_ATTRIBUTES, configs, count,
 			     &matched);
-	if (!success || &matched)
+	if (!success || !matched)
 		goto err_choose_config;
 
-	//find the suitable config
-	for (i = 0; i < count; i++) {
-		EGLint gbm_format;
+	if (!visual_id)
+		goto err_choose_config;
+	//match desired visual id
+	for (i = 0; config_id == -1 &&i < n_ids; i++)
+		config_id = match_visual_id(rh->dpy, visual_id[i],
+				configs, matched);
+	if (config_id == -1)
+		goto out;
 
-		if (!eglGetConfigAttrib(rh->dpy, configs[i],
-					EGL_NATIVE_VISUAL_ID, &gbm_format))
-			goto err_choose_config;
-		if (gbm_format == GBM_FORMAT_XRGB8888) {
-			*cfg = configs[i];
-			return 0;
-		}
-	}
+	cfg = configs[config_id];
+out:
 	free(configs);
-	return -1;
+	if (config_id == -1)
+		return -1;
+	return 0;
 
-err_get_config:
-	return eglGetError();
 err_choose_config:
 	free(configs);
+err_get_config:
 	return eglGetError();
 }
 
@@ -93,7 +121,8 @@ int init_egl(render_handler *rh, uint32_t width, uint32_t height)
 		return -EINVAL;
 	eglInitialize(rh->dpy, &major, &minor);
 	eglBindAPI(EGL_OPENGL_API);
-	if (choose_config(rh, &rh->cfg))
+	if (choose_config(rh, &rh->cfg, VISUAL_IDS, 
+				sizeof(VISUAL_IDS) / sizeof(EGLint)))
 		return -EINVAL;
 
 	rh->native_window = gbm_surface_create(rh->gbm,
@@ -104,7 +133,7 @@ int init_egl(render_handler *rh, uint32_t width, uint32_t height)
 	if (!rh->native_window)
 		return -1;
 #ifdef EGL_MESA_platform_gbm
-	rh->sfs = eglCreatePlatformWindowSurfaceEXT(rh->dyp,
+	rh->sfs = eglCreatePlatformWindowSurfaceEXT(rh->dpy,
 						    rh->cfg,
 			       (EGLNativeWindowType)rh->native_window,
 						    NULL);
