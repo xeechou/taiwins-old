@@ -8,8 +8,7 @@
 
 #include <gbm.h>
 #include <EGL/egl.h>
-//#include <EGL/eglext.h>
-//#include <EGL/eglmesaext.h>
+#include <EGL/eglext.h>
 #include "renderer.h"
 
 static const EGLint RENDER_ATTRIBUTES[] = {
@@ -26,6 +25,10 @@ static const EGLint VISUAL_IDS[] = {
 	GBM_FORMAT_XRGB8888,
 	GBM_FORMAT_ARGB8888
 };
+
+/*** Functions ***/
+static PFNEGLGETPLATFORMDISPLAYEXTPROC get_platform_display = NULL;
+static PFNEGLCREATEPLATFORMWINDOWSURFACEEXTPROC create_platform_surface = NULL;
 
 //static EGLint PBUFFER_ATTRIBUTES[] = {
 //   EGL_WIDTH,		3200,
@@ -64,7 +67,7 @@ static int match_visual_id(EGLDisplay display, EGLint visual_id, EGLConfig
 
 }
 
-static int choose_config(render_handler *rh, const EGLint *visual_id, 
+static int choose_config(render_handler *rh, const EGLint *visual_id,
 		const int n_ids, EGLint *return_vid)
 {
 	int i;
@@ -108,11 +111,15 @@ err_get_config:
 
 static int check_platform_extensions(void)
 {
+	/* TODO:now we only check gbm, adding more later */
 	const char *extensions = eglQueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS);
+	if (!strstr(extensions, "EGL_EXT_platform_base"))
+		return 0;
 	if (!strstr(extensions, "EGL_MESA_platform_gbm"))
 		return 0;
 	return 1;
 }
+
 int init_egl(render_handler *rh, uint32_t width, uint32_t height)
 {
 	int major, minor;
@@ -120,13 +127,16 @@ int init_egl(render_handler *rh, uint32_t width, uint32_t height)
 	EGLint chosed_visual_id = 0;
 
 	platform = check_platform_extensions();
-	//TODO
-#ifdef EGL_MESA_platform_gbm
-	rh->dpy = eglGetPlatformDisplayEXT(EGL_PLATFORM_GBM_MESA, rh->gbm,
-					     NULL);
-#else
-	rh->dpy = eglGetDisplay(rh->gbm);
-#endif
+	//TODO: get platform extensions
+	if (platform) {
+		get_platform_display =
+			(void*) eglGetProcAddress("eglGetPlatformDisplayEXT");
+		rh->dpy = get_platform_display(EGL_PLATFORM_GBM_MESA, rh->gbm,
+						NULL);
+	}
+	else
+		rh->dpy = eglGetDisplay(rh->gbm);
+
 	if (rh->dpy == EGL_NO_DISPLAY)
 		return -EINVAL;
 	eglInitialize(rh->dpy, &major, &minor);
@@ -142,17 +152,18 @@ int init_egl(render_handler *rh, uint32_t width, uint32_t height)
 						 GBM_BO_USE_RENDERING);
 	if (!rh->native_window)
 		return -1;
-#ifdef EGL_MESA_platform_gbm
-	rh->sfs = eglCreatePlatformWindowSurfaceEXT(rh->dpy,
-						    rh->cfg,
-			       (EGLNativeWindowType)rh->native_window,
-						    NULL);
-#else
-	rh->sfs = eglCreateWindowSurface(rh->dpy,
-					 rh->cfg,
-		    (EGLNativeWindowType)rh->native_window,
-					 NULL);
-#endif
+	if (platform) {
+		create_platform_surface = (void *)
+			eglGetProcAddress("eglCreatePlatformWindowSurfaceEXT");
+	rh->sfs = create_platform_surface(rh->dpy,
+					  rh->cfg,
+					  (EGLNativeWindowType)rh->native_window,
+					  NULL);
+	} else
+		rh->sfs = eglCreateWindowSurface(rh->dpy,
+						 rh->cfg,
+			    (EGLNativeWindowType)rh->native_window,
+						 NULL);
 	if (rh->sfs == EGL_NO_SURFACE) {
 		fprintf(stderr, "fail to create surface\n");
 		return eglGetError();
