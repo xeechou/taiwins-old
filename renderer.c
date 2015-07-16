@@ -40,15 +40,8 @@ int init_gbm(int fd, render_handler *rh)
 {
 	rh->gbm = gbm_create_device(fd);
 	if (!rh->gbm)
-		goto err;
-	//info->bo = gbm_bo_create(info->gbm, info->width, info->height,
-	//			GBM_BO_FORMAT_XRGB8888,
-	//			GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
-	//if (!info->bo)
-	//	goto err;
+		return -errno;
 	return 0;
-err:
-	return -errno;
 }
 
 static int match_visual_id(EGLDisplay display, EGLint visual_id, EGLConfig
@@ -120,6 +113,7 @@ static int check_platform_extensions(void)
 	return 1;
 }
 
+/* init_egl create display and surface with gbm support */
 int init_egl(render_handler *rh, uint32_t width, uint32_t height)
 {
 	int major, minor;
@@ -127,6 +121,7 @@ int init_egl(render_handler *rh, uint32_t width, uint32_t height)
 	EGLint chosed_visual_id = 0;
 
 	platform = check_platform_extensions();
+	//STEP 0: get display
 	//TODO: get platform extensions
 	if (platform) {
 		get_platform_display =
@@ -145,6 +140,8 @@ int init_egl(render_handler *rh, uint32_t width, uint32_t height)
 			&chosed_visual_id))
 		return -EINVAL;
 
+
+	//STEP 1: get surface
 	rh->native_window = gbm_surface_create(rh->gbm,
 						 width, height,
 						 chosed_visual_id,
@@ -168,12 +165,55 @@ int init_egl(render_handler *rh, uint32_t width, uint32_t height)
 		fprintf(stderr, "fail to create surface\n");
 		return eglGetError();
 	}
-	return 0;
 
+	//STEP 2: create context
+	static const EGLint context_attribs[] = {
+		EGL_CONTEXT_CLIENT_VERSION, 2,
+		EGL_NONE
+	};
+	rh->ctx = eglCreateContext(rh->dpy, rh->cfg, EGL_NO_CONTEXT,
+				   context_attribs);
+	if (rh->ctx == NULL)
+		return eglGetError();
+
+	//STEP 3: make current
+	return eglMakeCurrent(rh->dpy, rh->sfs, rh->sfs, rh->ctx);
 }
 
+
+void sample_render(render_handler *rh)
+{
+	//some gl/gles code, I have to learn something before write this
+}
+
+void use_buffer(int fd, disp_info *info)
+{
+	render_handler *rh = &info->rh;
+	struct gbm_bo *bo;
+	uint32_t handle, stride;
+	int fb, ret;
+	drmModeCrtcPtr *saved_crtc;
+
+	eglSwapBuffers(rh->dpy, rh->sfs);
+
+	//prepare for adding fb
+	bo = gbm_surface_lock_front_buffer(rh->native_window);
+	handle = gbm_bo_get_handle(bo).u32;
+	stride = gbm_bo_get_pitch(bo);
+
+
+	ret = drmModeAddFB(fd, info->width, info->height, 24, 32,
+			   stride, handle, &fb);
+	if (ret)
+		; //log this
+	drmModeSetCrtc(fd, info->crtc, fb, 0, 0, &info->conn, &info->mode);
+}
 void destroy_render_handler(render_handler *rh)
 {
+	//TODO: egl has destroy functions as well, you will really need to
+	//handle that
+	if (rh->native_window)
+		gbm_surface_destroy(rh->native_window);
 	if (rh->gbm)
 		gbm_device_destroy(rh->gbm);
 }
