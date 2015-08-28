@@ -1,0 +1,32 @@
+Mode of the wm: shared: every workspace has access to all monitors, you can
+ajust workspace on each monitor.
+
+Policy to arrange clients:
+1) only two rules: column based and row based
+2) you can set floating on each client or workspace.
+
+
+Basic operations allowed:
+-- Clients:
+	1) spawn new client.
+	2) close new client.
+	3) move clients to other workspaces / monitors.
+	4) increase/decrease clients level. 
+	5) switch between clients (used very often).
+-- workspace:
+	1) workspaces are basically spawed at beginning, you can't do anything
+	except changing configurations.
+	2) move between workspaces.
+	3) NO merge with workspaces.
+	4) change layout of workspaces.
+-- monitors:
+	1) move between monitors.
+	2) set barwins of each monitors.
+
+
+Configurations:
+1) NOT XML!!!
+2) yml may works. (json like file is useful).
+3) monitors can be configured using (randr) or configure file.
+4) use two numbers(0,1) to indicate the location. 
+

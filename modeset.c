@@ -135,7 +135,7 @@ static int init_connectors(int fd, drmModeRes *res, disp_array *disp_arr)
 }
 
 
-static int init_fb(int fd, drmModeRes *res, disp_info *info)
+static int init_fb(int fd, disp_info *info)
 {
 	int ret;
 
@@ -145,6 +145,8 @@ static int init_fb(int fd, drmModeRes *res, disp_info *info)
 	ret = init_egl(&info->rh, info->width, info->height);
 	if (ret)
 		return ret;
+	//drmModeAddFB(fd, info->width, info->height);
+
 
 	return 0;
 }
@@ -175,10 +177,11 @@ int main()
 	}
 	//fprintf(stdout, "%d\n", displays.n_disps);
 	disp_info *info = &displays.disps[0];
-	init_fb(fd, res, info);
+	drmModeFreeResources(res);
+
+	init_fb(fd, info);
 	destroy_disp(info);
 
-	drmModeFreeResources(res);
 
 	free(displays.disps);
 

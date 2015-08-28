@@ -18,7 +18,6 @@
 
 typedef struct render_handler {
 	struct gbm_device *gbm;	// you can alloc 16 gbm at most
-	struct gbm_bo *bo;
 	EGLConfig  cfg;
 	EGLDisplay dpy;
 	EGLContext ctx;

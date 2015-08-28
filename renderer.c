@@ -186,6 +186,7 @@ void sample_render(render_handler *rh)
 	//some gl/gles code, I have to learn something before write this
 }
 
+
 void use_buffer(int fd, disp_info *info)
 {
 	render_handler *rh = &info->rh;
@@ -206,7 +207,19 @@ void use_buffer(int fd, disp_info *info)
 			   stride, handle, &fb);
 	if (ret)
 		; //log this
-	drmModeSetCrtc(fd, info->crtc, fb, 0, 0, &info->conn, &info->mode);
+	ret = drmModeSetCrtc(fd, info->crtc, fb, 0, 0, &info->conn, &info->mode);
+	if (ret)
+		printf("failed to set mode\n");
+	while (1) {
+		struct gbm_bo *next_bo;
+		eglSwapBuffer(rh->dpy, rh->sfs);
+		if (gbm_surface_has_free_buffers(rh->native_window))
+			next_bo =
+				gbm_surface_lock_front_buffer(rh->native_window);
+		ret = drmModeSetCrtc(fd, info->crtc, fb, 0, 0, &info->conn, &info->mode);
+		if (ret)
+			printf("failed to set mode\n");
+	}
 }
 void destroy_render_handler(render_handler *rh)
 {
