@@ -11,5 +11,24 @@ DOING:
 
 TODO:
 +. Use wayland apis, eg. wl_signal and wl_listener to handle signals.
++. I intend to write every part into api+private_data, and expose very little
+outside
++. write first wl_global_create
 
-+. How to manager tags on different monitors?
+
+
+
+
+Thinks I found in wayland src:
+1.It seems that on the client side. wl_compositor, wl_callback, and all protocal
+object are just wl_proxy!!!! So you never use them directly, they can only be
+accessed by pointer. And in the end, they will be casted to wl_proxy!
+
+2. So maybe on the server side, all these objects are wl_source
+
+The reason we need seperate process to answer mode switching is you don't wanna
+a dead compositor without any response. The seperated process can handle mode
+switch, kill the compositor when it is stuck.
+
+How can we brought openGL into play? There is topic called scene graph where
+graphic is arranged as a tree, so there must be a data structure in sharder.
