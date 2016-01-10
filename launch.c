@@ -1,6 +1,7 @@
-//#include "utils.h"
+#include "utils.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <errno.h>
 #include <signal.h>
@@ -31,7 +32,8 @@ typedef struct tw_launcher {
 	int signalfd;
 	int child;
 
-	int kb_mode;	//This is mode that we store for recovering KD_TEXT
+	long kb_mode;	//This is mode that we store for recovering KD_TEXT
+	bool activated;
 } tw_launcher;
 
 static tw_launcher launcher = {0};
@@ -72,25 +74,39 @@ static inline int vt_process(tw_launcher *tw)
 }
 static inline int vt_auto(tw_launcher *tw)
 {
-	struct vt_mode mode = {0};
-	mode.mode = VT_AUTO;
+	struct vt_mode mode = {.mode = VT_AUTO};
 	return ioctl(tw->tty, VT_SETMODE, &mode);
+}
+
+static void activate(tw_launcher *tw)
+{
+	//for now we need root privillege to setMaster
+	drmSetMaster(tw->tty);	//XXX:its gonna be a err anyway
+	tw->activated = true;
+}
+
+static void deactivate(tw_launcher *tw)
+{
+	//for now we need root privillege to setMaster
+	drmDropMaster(tw->tty);
+	tw->activated = false;
 }
 
 static inline int quit(tw_launcher *tw)
 {
-	if (umute_keyboard(tw))
-		return -1;
-	if (kd_text(tw))
-		return -1;
-	if (vt_auto(tw))
-		return -1;
+	deactivate(tw);
+	umute_keyboard(tw);
+	kd_text(tw);
+	vt_auto(tw);
+	//close  fd
+	close(tw->tty);
 	return 0;
 }
 //Help functions end
 
 static int setup_tty(tw_launcher *tw)
 {
+	int ret = 0;
 	int fd = -1;
 	int found_tty;
 
@@ -108,26 +124,42 @@ static int setup_tty(tw_launcher *tw)
 	if (found_tty >= 0)
 		ttyname_r(fd, tw->ttyname, 16);
 	else
-		return -1;	//TODO, open a avaliable terminal
+		goto err;	//TODO, open a avaliable terminal
 
 	/* dealing with keyboads, vts */
-	if (save_keyboard_mode(tw))
-		return -1;
-	if (mute_keyboard(tw))
-		return -1;
-
-	if (kd_graphic(tw))
-		return -1;
-
+	if (save_keyboard_mode(tw)) {
+		ret = -1;
+		goto err;
+	}
+	if (mute_keyboard(tw)) {
+		ret = -2;
+		goto err;
+	}
+	if (kd_graphic(tw)) {
+		ret = -3;
+		goto err_kd;
+	}
+	if (vt_process(tw) < 0) {
+		ret = -4;
+		goto err_vt;
+	}
+	activate(&launcher);
 	/* now we need to unmute the keyboard */
-	if (umute_keyboard(tw))
-		return -1;
-
-	/* set vts */
-	if (vt_process(tw) < 0)
-		return -1;
-
+	if (umute_keyboard(tw)) {
+		ret = -5;
+		goto err_last;
+	}
 	return 0;
+
+err_last:
+	deactivate(tw);
+	vt_auto(tw);
+err_vt:
+	kd_text(tw);
+err_kd:
+	umute_keyboard(tw);
+err:
+	return ret;
 }
 
 /* there are two ways to handle signal, one is by setting signal handler on each
@@ -149,11 +181,13 @@ static void handle_usr1(int signal)
 {
 	tw_launcher *tw = &launcher;
 	//drmDropMaster(tw->tty);
+	//TW_DEBUG_INFO("handle_usr1\n");
 	ioctl(tw->tty, VT_RELDISP, 1);
 }
 static void handle_usr2(int signal)
 {
 	tw_launcher *tw = &launcher;
+	//TW_DEBUG_INFO("handle_usr2\n");
 	ioctl(tw->tty, VT_RELDISP, VT_ACKACQ);
 	//drmSetMaster(tw->tty);
 }
@@ -227,15 +261,16 @@ static int reset_signals(void)
  * still switch out */
 int main()
 {
-	int ret = 0;
-
-	if (setup_tty(&launcher)) {
-		printf("Could not setup a tty to work.\n");
-		return -1;
+	int ret;
+	if ((ret = setup_tty(&launcher))) {
+		//TW_DEBUG_ERROR("Could not setup a tty to work %d\n", ret);
+		//printf("Could not setup a tty to work.\n");	//printf is not
+		//working is this env anymore
+		goto err_tty;
 	}
 	if (setup_signals(&launcher)) {
-		quit(&launcher);
-		printf("Could not setup signals.\n");
+		goto err_sig;
+		//TW_DEBUG_ERROR("Could not setup signals.\n");
 		return -1;
 	}
 
@@ -261,6 +296,33 @@ int main()
 			printf("error.\n");
 	}
 	return 0;
-err:
+
+err_sig:
+	quit(&launcher);
+err_tty:
 	return -1;
 }
+
+//int main()
+//{
+//	int ret = 0;
+//	init_debug();
+//	if ((ret = setup_tty(&launcher))) {
+//		TW_DEBUG_ERROR("Could not setup a tty to work %d\n", ret);
+//		//printf("Could not setup a tty to work.\n");
+//		goto err_tty;
+//	}
+//	if (setup_signals(&launcher)) {
+//		goto err_sig;
+//		TW_DEBUG_ERROR("Could not setup signals.\n");
+//		return -1;
+//	}
+//
+//	quit(&launcher);
+//	close_debug();
+//	return 0;
+//err_sig:
+//	quit(&launcher);
+//err_tty:
+//	return -1;
+//}
