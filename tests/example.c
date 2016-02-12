@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <wlc/wlc.h>
 #include <linux/input.h>
+#include <cairo/cairo.h>
 
 static struct {
    struct {
@@ -256,6 +257,15 @@ cb_log(enum wlc_log_type type, const char *str)
    (void)type;
    printf("%s\n", str);
 }
+
+static void output_pre_render(wlc_handle ouput)
+{
+	//hand code a wallpapper in the ouput
+	const struct wlc_size *resolution  = wlc_output_get_resolution(output);
+	//to render a background with 3200 * 1800. you need 22MB for each image.
+	//wayland using xml as protocol, it has to be some wayland resource,
+}
+
 
 int
 main(int argc, char *argv[])

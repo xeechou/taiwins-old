@@ -24,7 +24,6 @@ main(int argc, char *argv[])
 			.created = view_created,
 			.focus = view_focus,
 		},
-		
 	};
 	if (!wlc_init(&interface, argc, argv))
 		return EXIT_FAILURE;
