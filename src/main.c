@@ -6,30 +6,11 @@
 #include <wlc/wlc-render.h>
 #include <linux/input.h>
 #include <utils.h>
+#include "handlers.h"
 
-static struct {
-	struct {
-		wlc_handle view;
-		struct wlc_point grab;
-		uint32_t edges;
-	} action;
-} compositor;
 
-#define utils_max(a,b) ({				\
-			__typeof__ (a) _a = (a);	\
-			__typeof__ (b) _b = (b); 	\
-			return (_a > _b ? _a : _b); })
-
-static inline uint32_t maxu32(uint32_t a, uint32_t b)
-{
-	return (a > b) ? a : b;
-}
-static inline uint32_t min32(uint32_t a, uint32_t b)
-{
-	return (a < b) ? a : b;
-}
-
-extern void register_background(void);
+struct tw_compositor compositor;
+//extern void register_background(void);
 
 static bool
 start_interactive_action(wlc_handle view, const struct wlc_point *origin)
@@ -90,7 +71,6 @@ relayout(wlc_handle output)
 {
 	// very simple layout function
 	// you probably don't want to layout certain type of windows in wm
-
 	const struct wlc_size *r;
 	if (!(r = wlc_output_get_resolution(output)))
 		return;
@@ -108,15 +88,15 @@ relayout(wlc_handle output)
 	}
 }
 
-/* resolution changed, obviously we need to relayout */
-static void
-output_resolution(wlc_handle output, const struct wlc_size *from, const struct wlc_size *to)
+
+void
+resolution_change_hook(wlc_handle output, const struct wlc_size *from, const struct wlc_size *to)
 {
 	(void)from, (void)to;
 	relayout(output);
 }
 
-static bool
+bool
 view_created(wlc_handle view)
 {
 	wlc_view_set_mask(view, wlc_output_get_mask(wlc_view_get_output(view)));
@@ -126,26 +106,26 @@ view_created(wlc_handle view)
 	return true;
 }
 
-static void
+void
 view_destroyed(wlc_handle view)
 {
 	wlc_view_focus(get_topmost(wlc_view_get_output(view), 0));
 	relayout(wlc_view_get_output(view));
 }
 
-static void
+void
 view_focus(wlc_handle view, bool focus)
 {
 	wlc_view_set_state(view, WLC_BIT_ACTIVATED, focus);
 }
 
-static void
+void
 view_request_move(wlc_handle view, const struct wlc_point *origin)
 {
 	start_interactive_move(view, origin);
 }
 
-static void
+void
 view_request_resize(wlc_handle view, uint32_t edges, const struct wlc_point *origin)
 {
 	start_interactive_resize(view, edges, origin);
@@ -155,6 +135,7 @@ bool
 keyboard_key(wlc_handle view, uint32_t time, const struct wlc_modifiers *modifiers, uint32_t key, enum wlc_key_state state)
 {
 	(void)time, (void)key;
+
 	const uint32_t sym = wlc_keyboard_get_keysym_for_key(key, NULL);
 
 	if (state == WLC_KEY_STATE_PRESSED) {
@@ -257,14 +238,7 @@ pointer_motion(wlc_handle handle, uint32_t time, const struct wlc_point *positio
 	return (compositor.action.view ? true : false);
 }
 
-/*
-static void
-cb_log(enum wlc_log_type type, const char *str)
-{
-   (void)type;
-   printf("%s\n", str);
-}
-*/
+
 
 int
 main(int argc, char *argv[])
@@ -272,36 +246,16 @@ main(int argc, char *argv[])
 	logger_setup("stderr");
 	wlc_log_set_handler(logger);
 
-	static struct wlc_interface interface = {
-		.output = {
-			.resolution = output_resolution,
-			//.render = {
-			//	.pre = output_pre_render,	   
-			//},
-		},
+	wlc_set_view_created_cb(view_created);
+	wlc_set_view_destroyed_cb(view_destroyed);
+	wlc_set_view_focus_cb(view_focus);
+	wlc_set_view_request_move_cb(view_request_move);
+	wlc_set_view_request_resize_cb(view_request_resize);
+	wlc_set_keyboard_key_cb(keyboard_key);
+	wlc_set_pointer_button_cb(pointer_button);
+	wlc_set_pointer_motion_cb(pointer_motion);
 
-		.view = {
-			.created = view_created,
-			.destroyed = view_destroyed,
-			.focus = view_focus,
-		   
-			.request = {
-				.move = view_request_move,
-				.resize = view_request_resize,
-			},
-		},
-	   
-		.keyboard = {
-			.key = keyboard_key,
-		},
-	   
-		.pointer = {
-			.button = pointer_button,
-			.motion = pointer_motion,
-		},
-	};
-
-	if (!wlc_init(&interface, argc, argv))
+	if (!wlc_init())
 		return EXIT_FAILURE;
 	//we need to have a background global...
 	//register_background();
