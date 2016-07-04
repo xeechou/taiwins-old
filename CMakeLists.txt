@@ -4,6 +4,7 @@ project(taiwins
   VERSION 0.1
   LANGUAGES C CXX)
 
+set(CMAKE_BINARY_DIR build)
 set(CMAKE_C_FLAGS "-g")
 
 add_definitions(

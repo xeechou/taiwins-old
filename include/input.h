@@ -54,7 +54,7 @@ struct key_context {
 	key_context_type type;
 	uint64_t code;
 	//the method replaces insert function
-	struct key_context operator=(struct key_context& rhs) {
+	struct key_context operator=(const struct key_context& rhs) {
 		type = rhs.type;
 		code = rhs.code;
 		return *this;
