@@ -8,7 +8,7 @@
 #include <utils.h>
 #include "handlers.h"
 
-
+static FILE *debug_file = NULL;
 struct tw_compositor compositor;
 //extern void register_background(void);
 
@@ -67,27 +67,44 @@ get_topmost(wlc_handle output, size_t offset)
 }
 
 static void
-relayout(wlc_handle output)
+relayout_float(const wlc_handle *views, const size_t nviews)
 {
-	// very simple layout function
-	// you probably don't want to layout certain type of windows in wm
+	//this method has to be called in safe env.
+	if(!views)
+		return;
+	wlc_handle output = wlc_view_get_output(*views);
 	const struct wlc_size *r;
 	if (!(r = wlc_output_get_resolution(output)))
 		return;
-
-	size_t memb;
-	const wlc_handle *views = wlc_output_get_views(output, &memb);
-
-	bool toggle = false;
-	uint32_t y = 0;
-	uint32_t w = r->w / 2, h = r->h / maxu32((1 + memb) / 2, 1);
-	for (size_t i = 0; i < memb; ++i) {
-		struct wlc_geometry g = { { (toggle ? w : 0), y }, { (!toggle && i == memb - 1 ? r->w : w), h } };
+	//this method is not safe, how do you ensure you will not access
+	//unallocated memory? c++ vector?
+	for (size_t i = 0; i < nviews; i++) {
+		//the only thing we are doing here is ensure the the window
+		//does not go out or border, but is may not be good, since
+		//windows can have border
+		struct wlc_geometry g = *wlc_view_get_geometry(views[i]);
+		//If I add this line, it will come with wired effect, 
+		g.size.h = (g.size.h > 0) ? g.size.h : 100;
+		g.size.w = (g.size.w > 0) ? g.size.w : 100;
+		
+		int32_t view_botton = g.origin.y+g.size.h;
+		int32_t view_right = g.origin.x+g.size.w;
+		
+		g.size.h = MIN(view_botton, r->h) - g.origin.y;
+		g.size.w = MIN(view_right, r->w) - g.origin.x;
+		
 		wlc_view_set_geometry(views[i], 0, &g);
-		y = y + (!(toggle = !toggle) ? h : 0);
 	}
 }
-
+void relayout(wlc_handle output)
+{
+	const struct wlc_size *r;
+	if (!(r = wlc_output_get_resolution(output)))
+		return;
+	size_t memb;
+	const wlc_handle* views = wlc_output_get_views(output, &memb);
+	relayout_float(views, memb);
+}
 
 void
 resolution_change_hook(wlc_handle output, const struct wlc_size *from, const struct wlc_size *to)
@@ -244,6 +261,7 @@ int
 main(int argc, char *argv[])
 {
 	logger_setup("stderr");
+	debug_file = fopen("/tmp/tw-log", "w+");
 	wlc_log_set_handler(logger);
 
 	wlc_set_view_created_cb(view_created);
