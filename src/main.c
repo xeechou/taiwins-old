@@ -67,23 +67,19 @@ get_topmost(wlc_handle output, size_t offset)
 }
 
 static void
-relayout_float(const wlc_handle *views, const size_t nviews)
+relayout_float(const wlc_handle *views, const size_t nviews,
+	       struct wlc_geometry *g)
 {
 	//this method has to be called in safe env.
-	if(!views)
+	if(!views || !nviews || !g)
 		return;
-	wlc_handle output = wlc_view_get_output(*views);
-	const struct wlc_size *r;
-	if (!(r = wlc_output_get_resolution(output)))
-		return;
+	const struct wlc_size *r  = &(g->size);
 	//this method is not safe, how do you ensure you will not access
 	//unallocated memory? c++ vector?
 	for (size_t i = 0; i < nviews; i++) {
-		//the only thing we are doing here is ensure the the window
-		//does not go out or border, but is may not be good, since
-		//windows can have border
+
 		struct wlc_geometry g = *wlc_view_get_geometry(views[i]);
-		//If I add this line, it will come with wired effect, 
+
 		g.size.h = (g.size.h > 0) ? g.size.h : 100;
 		g.size.w = (g.size.w > 0) ? g.size.w : 100;
 		
@@ -96,6 +92,7 @@ relayout_float(const wlc_handle *views, const size_t nviews)
 		wlc_view_set_geometry(views[i], 0, &g);
 	}
 }
+/*
 void relayout(wlc_handle output)
 {
 	const struct wlc_size *r;
@@ -105,6 +102,117 @@ void relayout(wlc_handle output)
 	const wlc_handle* views = wlc_output_get_views(output, &memb);
 	relayout_float(views, memb);
 }
+*/
+
+static void
+relayout_onecol(const wlc_handle *views, const size_t nviews,
+		const struct wlc_geometry *geo)
+{
+	fprintf(debug_file, "I am in relayout onecol\n");
+	if (nviews == 0)
+		return;
+	size_t y = geo->origin.y;
+	//if nviews == 0, crashes
+	size_t srow = (size_t) (geo->size.h / nviews);
+	for (size_t i = 0; i < nviews; i++) {
+		struct wlc_geometry g = {
+			{geo->origin.x, y},//point
+			{geo->size.w, srow}//size
+		};
+		y += srow;
+		fprintf(debug_file, "the %dth window has geometry, x: %d, y: %d, w: %d, h: %d\n", i, g.origin.x, g.origin.y, g.size.w, g.size.h);
+		wlc_view_set_geometry(views[i], 0, &g);
+	}
+}
+static void
+relayout_onerow(const wlc_handle *views, const size_t nviews,
+		const struct wlc_geometry *geo)
+{
+	fprintf(debug_file, "I am in relayout onerow\n");
+	if (nviews == 0)
+		return;
+	size_t x = geo->origin.x;
+	//if nviews == 0, crashes
+	size_t scol = (size_t) (geo->size.w / nviews);
+	for (size_t i = 0; i < nviews; i++) {
+		struct wlc_geometry g = {
+			{x, geo->origin.y},//point
+			{scol, geo->size.h}//size
+		};
+		x += scol;
+		fprintf(debug_file, "the %dth window has geometry, x: %d, y: %d, w: %d, h: %d\n", i, g.origin.x, g.origin.y, g.size.w, g.size.h);
+		wlc_view_set_geometry(views[i], 0, &g);
+	}
+}
+
+
+
+static void
+relayout(wlc_handle output)
+{
+	//XXX: the first window cannot be ranged.
+	//But, if I set the function to pre-render hook, the problem will solved
+	fprintf(debug_file, "relayout\n");
+	struct wlc_geometry g;
+	g.origin = (struct wlc_point){0,0};
+	g.size = *wlc_output_get_resolution(output);
+	size_t x, y, w, h;
+	x = 0, y = 0;
+	w = g.size.w, h = g.size.h;
+	double master_size = 0.5;
+	bool col_based = false;
+	size_t memb;
+	size_t nfloating = 0;
+	size_t nmaster = 2;//nmaster may be larger than ninstack or even nviews
+	const wlc_handle *views = wlc_output_get_views(output, &memb);
+	size_t nviews = memb;
+	size_t msize = (size_t)(master_size * ((col_based) ? w : h));
+	fprintf(debug_file, "msize is %d\n", msize);
+	size_t ninstack = nviews - nfloating;
+	
+	//assert(nfloating <= nviews && nmaster <= ninstack);
+
+	//we need to setup a counter here, since nmaster maybe larger than nviews
+	size_t counter = (ninstack > nmaster) ? nmaster : ninstack;
+	//the numbers are correct
+	fprintf(debug_file, "counter is %d\n", counter);
+	fprintf(debug_file, "arrange %d masters\n", counter);
+	fprintf(debug_file, "arrange %d miners\n", ninstack-counter);
+	fprintf(debug_file, "arrange %d floating\n", nviews-ninstack);
+	fflush(debug_file);
+
+	{//arrange master windows
+		if (counter == 0)
+			return;
+		if (col_based) {
+			g.size.w = (ninstack > nmaster) ? msize : w;
+			relayout_onecol(views, counter, &g);
+		} else {
+			g.size.h = (ninstack > nmaster) ? msize : h;
+			relayout_onerow(views, counter, &g);
+		}
+	}
+	{//arrange minor windows
+		if (ninstack - counter == 0)
+			return;
+		if (col_based) {
+			g.origin.x = x+msize;
+			relayout_onecol(views + counter, ninstack-counter, &g);
+		} else {
+			g.origin.y = y+msize;
+			relayout_onerow(views + counter, ninstack-counter, &g);
+		}//recover the output-geometry
+		g.origin.x = 0; g.origin.y = 0;
+		g.size.h = h; g.size.w = w;
+	}
+	//arrange the floating windows
+	relayout_float(views + ninstack, nfloating, &g);
+	//	       tw_output_get_geometry(output));
+
+	//it is useless here: wlc_output_schedule_render(output);
+}
+
+
 
 void
 resolution_change_hook(wlc_handle output, const struct wlc_size *from, const struct wlc_size *to)
@@ -116,6 +224,8 @@ resolution_change_hook(wlc_handle output, const struct wlc_size *from, const str
 bool
 view_created(wlc_handle view)
 {
+	fprintf(debug_file, "view created\n");
+	fflush(debug_file);
 	wlc_view_set_mask(view, wlc_output_get_mask(wlc_view_get_output(view)));
 	wlc_view_bring_to_front(view);
 	wlc_view_focus(view);
@@ -260,7 +370,7 @@ pointer_motion(wlc_handle handle, uint32_t time, const struct wlc_point *positio
 int
 main(int argc, char *argv[])
 {
-	logger_setup("stderr");
+	logger_setup("/home/developer/tw-log");
 	debug_file = fopen("/tmp/tw-log", "w+");
 	wlc_log_set_handler(logger);
 
@@ -272,7 +382,7 @@ main(int argc, char *argv[])
 	wlc_set_keyboard_key_cb(keyboard_key);
 	wlc_set_pointer_button_cb(pointer_button);
 	wlc_set_pointer_motion_cb(pointer_motion);
-
+	wlc_set_output_render_pre_cb(relayout);
 	if (!wlc_init())
 		return EXIT_FAILURE;
 	//we need to have a background global...
