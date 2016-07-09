@@ -6,185 +6,129 @@
  * relayout strategy, in modulized structures, thus we are able to 
  * change the strategy later.
  */
-
+#include <stdlib.h>
 #include <wlc/wlc.h>
 #include <wlc/geometry.h>
 #include <types.h>
+#include "layout.h"
 
-class Layout {
-protected:
-	/* base class */
-	tw_handle monitor;//the monitor it belongs to
-
-	//this should be a circle array, since I can but 
-	size_t nviews;	//all the views for that layout of the monitor
-	tw_handle *views; // the view for the given output
-	
-public:
-	/* every sub-class inherit this method */
-	virtual void relayout (tw_handle output);
+enum tw_border_t {
+	TW_BORDER_NONE, /* no border, implementation can be intergraded to TW_BORDER_PIX */
+	TW_BORDER_PIX,  /* a few pixels as border */
+	TW_BORDER_REG   /* a window like border, with title on it? */
 };
 
-/* the pure floating layout, no stacked/titing window exists */
-class Floating : Layout {
-public:
-	void relayout(tw_handle output);
+struct tw_border {
+	tw_border_t type; 
+	size_t stitle; /* size of title, not used in pixel type */
+	size_t sborder; /* the size of top, not used in regular type */
+
+	/* NOTATION: the border should be the same for every output, so stores
+	 * the tw_border for every border is really a waste */
 };
+
 
 /**
- *
- * @brief the classic DWM like layout method, support row-based and 
- * col-based.
- *
- * 
+ * The data that binds to a wlc_view
  */
-class MasterLayout : Layout {
-	//there are two layouts) and the other words, it should run under any
-	//resolution
-	bool col_based; /* default two column method */
-	size_t nmaster;
-	double master_size; // from 0 to 1, default 0.5
-	//append the titling windows to the left, floating windows to the
-	//end
-	size_t nfloating;
-public:
-	void relayout(tw_handle output);
-};
-
-void
-MasterLayout::relayout(tw_handle output)
-{
-	tw_geometry g = *tw_output_get_monitor(output);
-	size_t x, y, w, h;
-	x = g.origin.x, y = g.origin.y;
-	w = g.size.w,   h = g.size.h;
+struct tw_view_data {
+	// in relayout method, we always assume the geometry is the content
+	// geometry, that is, borders are not included
 	
-	assert(master_size > 0 && master_size < 1.0);
-	size_t msize = (size_t)(master_size * ((col_based) ? w : h)); 
-	size_t ninstack = nviews - nfloating;
-	assert(nfloating <= nviews && nmaster <= ninstack);
-
-	if (col_based) {
-		g.size.w = msize;
-		relayout_onecol(views, nmaster, &g);
-	} else {
-		g.size.h = msize;
-		relayout_onerow(views, nmaster, &g);
-	}
-        //arrange the minor windows
-	if (col_based) {
-		g.origin.x = x+msize;
-		relayout_onecol(views + nmaster, ninstack-nmaster, &g);
-	} else {
-		g.origin.y = y+msize;
-		relayout_onerow(views + nmaster, ninstack-nmaster, &g);
-	}
-	//arrange the floating windows
-	relayout_float(views + ninstack, nfloating,
-		       tw_output_get_geometry(output));
-}
-void
-Floating::relayout(tw_handle output)
+	tw_border *border;
+	size_t scale; // windows can have their own scales, for those which
+		      // doesn't support HIDPI, default 1.
+	tw_size actual; // when the view need to be scaled, we stores the actual size for it
+	
+};
+/**
+ * @brief allocate space for the border of a view
+ *
+ */
+void adjust_border(tw_handle view)
 {
-	const struct wlc_size *r;
-	if (!(r = wlc_output_get_resolution(output)))
+	//border adjust algorithm:
+	// 1) find the content geometry
+	// 2) scale down the content if necessary and store it in actual size
+	// there maybe more sophisticated algorithm later, since we need to do divide later
+	const tw_geometry *g = wlc_view_get_geometry(view);
+	if (!g)
 		return;
-	size_t memb;
-	const tw_handle* views = wlc_output_get_views(output, &memb);
-	relayout_float(views, memb, r);
+	struct tw_view_data *d = (struct tw_view_data *)wlc_handle_get_user_data(view);
+	if (!d->scale) //enusure we never crash
+		d->scale = 1;
+	tw_geometry new_g = *g;
+	
+	switch (d->border->type) {
+	case  TW_BORDER_NONE:
+		return;
+		break;
+	case TW_BORDER_PIX:
+		//content_geometry
+		new_g.origin.x += d->border->sborder;
+		new_g.origin.y += d->border->sborder;
+		new_g.size.h -= 2*(d->border->sborder);
+		new_g.size.w -= 2*(d->border->sborder);
+		wlc_view_set_geometry(view, 0, &new_g);
+		//scale down the actual geometry
+		d->actual.h = (size_t)(new_g.size.h / d->scale);
+		d->actual.w = (size_t)(new_g.size.w / d->scale);
+		//wlc_handle_set_user_data(view, d);
+		break;
+	case TW_BORDER_REG:
+		//content_geometry
+		new_g.origin.y += d->border->stitle;
+		new_g.size.h   -= d->border->stitle;
+		wlc_view_set_geometry(view, 0, &new_g);
+		//scale down the actual geometry
+		d->actual.h = (size_t)(new_g.size.h / d->scale);
+		d->actual.w = (size_t)(new_g.size.w / d->scale);
+		break;
+	}
 }
+
+
 
 /**
  *
  * @brief, window manager struct, one per output
  */
-struct taiwins_monitor {
+struct tw_monitor {
 	tw_handle output; ///unique id
+	size_t scale; //could be either 1, 2, 3...
 	
 	//physical attributes
-	uint32_t xo, yo; //left upper corner
-	uint32_t width, height; //valid layout space
-	
+	tw_geometry geometry; // the valid area for create windows.
+	//and we have a menu, a very powerful one.
 	
 	size_t nlayouts;
 	//this works for one monitor only, if I have multiple monitor,
 	//I should be able to stay on different layout at different monitor
-	class Layout *layouts; /* array */
+	Layout *layouts; /* array */
 	size_t lays_recent[2]; /** recent two layouts */
+};
+
+void create_monitor(wlc_handle output)
+{
+	struct tw_monitor *mon = (struct taiwins_monitor *)malloc(sizeof(struct taiwins_monitor));
+	mon->output = output;
+	//setup scale based on name.
+	wlc_output_get_name(output);
+	//get name from config...
+	mon->scale = 1;
 	
-};
+	//setup the geometry, temporary code, chage this later
+	mon->geometry.origin = (tw_point){0, 0};
+	mon->geometry.size = *wlc_output_get_resolution(output);
 
+	mon->nlayouts = 2;
+	mon->layouts = new Layout[mon->nlayouts];
 
-/*  singleton struct? */
-struct taiwins_layout {
-	// you can chose two kinds of strategy:
-	// 1) the internal relayout function applies to single view, in
-	// this way, you need to keep the current global layout information
-	// in the layout struct. comment: this could be a bad idea as
-	// orgnizing single window is trival, calling functions will take up
-	// major time.
-	// 2) a global relayout method.
-	void (*relayout) (const tw_handle *first_view, const size_t nviews);
-};
-
-
-/**
- * 
- * @brief the simple floating windows relayout strategy, which is actually
- * doing nothing.
- */
-static void
-relayout_float(const tw_handle *views, const size_t nviews,
-	       const wlc_geometry *geo)
+	wlc_handle_set_user_data(output, mon);
+}
+void destroy_monitor(wlc_handle output)
 {
-	//this method has to be called in safe env.
-	if(!views || !geo)
-		return;
-	const wlc_size *r = &geo->size;
-	//this method is not safe, how do you ensure you will not access
-	//unallocated memory? c++ vector?
-	for (size_t i = 0; i < nviews; i++) {
-		//the only thing we are doing here is ensure the the window
-		//does not go out or border, but is may not be good, since
-		//windows can have border
-		struct wlc_geometry g = *wlc_view_get_geometry(views[i]);
-		g.size.h = (g.size.h > 0) ? g.size.h : 100;//give a initial height if not avaliable
-		g.size.w = (g.size.w > 0) ? g.size.w : 100;//give a initial width if not avaliable
-		
-		int32_t view_botton = g.origin.y+g.size.h;
-		int32_t view_right = g.origin.x+g.size.w;
-		
-		g.size.h = MIN(view_botton, r->h) - g.origin.y;
-		g.size.w = MIN(view_right, r->w) - g.origin.x;
-		wlc_view_set_geometry(views[i], 0, &g);
-	}
+	struct tw_monitor *mon = (struct tw_monitor *)wlc_handle_get_user_data(output);
+	delete [] mon->layouts;
 }
 
-static void
-relayout_onecol(const tw_handle *views, const size_t nviews,
-		const wlc_geometry *geo)
-{
-	size_t y = geo->origin.y;
-	size_t srow = (size_t) (geo->size.h / nviews);
-	for (size_t i = 0; i < nviews; i++) {
-		struct wlc_geometry g = {
-			{geo->origin.x, y},//point
-			{geo->size.w, srow}//size
-		};
-		y += srow;
-	}
-}
-static void
-relayout_onerow(const tw_handle *views, const size_t nviews,
-		const wlc_geometry *geo)
-{
-	size_t x = geo->origin.x;
-	size_t scol = (size_t) (geo->size.w / nviews);
-	for (size_t i = 0; i < nviews; i++) {
-		struct wlc_geometry g = {
-			{x, geo->origin.y},//point
-			{scol, geo->size.h}//size
-		};
-		x += scol;
-	}
-}
