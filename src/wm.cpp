@@ -11,40 +11,18 @@
 #include <wlc/geometry.h>
 #include <types.h>
 #include "layout.h"
+#include "wm.h"
 
-enum tw_border_t {
-	TW_BORDER_NONE, /* no border, implementation can be intergraded to TW_BORDER_PIX */
-	TW_BORDER_PIX,  /* a few pixels as border */
-	TW_BORDER_REG   /* a window like border, with title on it? */
-};
+/* everyone include this */
+#include "handlers.h"
 
-struct tw_border {
-	tw_border_t type; 
-	size_t stitle; /* size of title, not used in pixel type */
-	size_t sborder; /* the size of top, not used in regular type */
-
-	/* NOTATION: the border should be the same for every output, so stores
-	 * the tw_border for every border is really a waste */
-};
-
-
-/**
- * The data that binds to a wlc_view
- */
-struct tw_view_data {
-	// in relayout method, we always assume the geometry is the content
-	// geometry, that is, borders are not included
-	
-	tw_border *border;
-	size_t scale; // windows can have their own scales, for those which
-		      // doesn't support HIDPI, default 1.
-	tw_size actual; // when the view need to be scaled, we stores the actual size for it
-	
-};
 /**
  * @brief allocate space for the border of a view
- *
+ * 
+ * Did I test this? Anyone use this?
  */
+/*
+static
 void adjust_border(tw_handle view)
 {
 	//border adjust algorithm:
@@ -86,49 +64,62 @@ void adjust_border(tw_handle view)
 		break;
 	}
 }
+*/
+
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+/////////////////////Implementing callbacks///////////////////
+//////////////////////////////////////////////////////////////
+
+//for the debugging purpose
+#include <stdio.h>
+extern FILE* debug_file;
 
 
-
-/**
- *
- * @brief, window manager struct, one per output
- */
-struct tw_monitor {
-	tw_handle output; ///unique id
-	size_t scale; //could be either 1, 2, 3...
-	
-	//physical attributes
-	tw_geometry geometry; // the valid area for create windows.
-	//and we have a menu, a very powerful one.
-	
-	size_t nlayouts;
-	//this works for one monitor only, if I have multiple monitor,
-	//I should be able to stay on different layout at different monitor
-	Layout *layouts; /* array */
-	size_t lays_recent[2]; /** recent two layouts */
-};
-
-void create_monitor(wlc_handle output)
+bool
+tw_output_created(wlc_handle output)
 {
-	struct tw_monitor *mon = (struct taiwins_monitor *)malloc(sizeof(struct taiwins_monitor));
+	fprintf(debug_file, "creating output\n");
+	fflush(debug_file);
+	struct tw_monitor *mon = (struct tw_monitor *)malloc(sizeof(struct tw_monitor));
 	mon->output = output;
 	//setup scale based on name.
-	wlc_output_get_name(output);
+	//wlc_output_get_name(output);
 	//get name from config...
+
+	//FIXME!!!!
 	mon->scale = 1;
 	
 	//setup the geometry, temporary code, chage this later
 	mon->geometry.origin = (tw_point){0, 0};
 	mon->geometry.size = *wlc_output_get_resolution(output);
 
-	mon->nlayouts = 2;
-	mon->layouts = new Layout[mon->nlayouts];
+	mon->nlayouts = 1;
+	mon->layouts = (Layout **)malloc(sizeof(Layout*) * mon->nlayouts);
+
+	//TODO:
+	//change this could later, introducing a switch
+	for (int i = 0; i < mon->nlayouts; i++)
+		mon->layouts[i] = new MasterLayout();
 
 	wlc_handle_set_user_data(output, mon);
+	
+	//you forgot to update these two!!!
+	mon->lays_recent[0] = 0;
+	mon->lays_recent[1] = 0;
+	
+	fprintf(debug_file, "done creating output\n");
+	fflush(debug_file);
+	return true;
 }
-void destroy_monitor(wlc_handle output)
+
+void tw_output_destroyed(wlc_handle output)
 {
 	struct tw_monitor *mon = (struct tw_monitor *)wlc_handle_get_user_data(output);
-	delete [] mon->layouts;
+	//deallocate the 
+	
+	for (int i = 0; i < mon->nlayouts; i++)
+		delete mon->layouts[i];
+	free(mon);
 }
 

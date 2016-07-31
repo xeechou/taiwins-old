@@ -8,7 +8,7 @@
 #include <utils.h>
 #include "handlers.h"
 
-static FILE *debug_file = NULL;
+FILE *debug_file = NULL;
 struct tw_compositor compositor;
 //extern void register_background(void);
 
@@ -66,32 +66,7 @@ get_topmost(wlc_handle output, size_t offset)
 	return (memb > 0 ? views[(memb - 1 + offset) % memb] : 0);
 }
 
-static void
-relayout_float(const wlc_handle *views, const size_t nviews,
-	       struct wlc_geometry *g)
-{
-	//this method has to be called in safe env.
-	if(!views || !nviews || !g)
-		return;
-	const struct wlc_size *r  = &(g->size);
-	//this method is not safe, how do you ensure you will not access
-	//unallocated memory? c++ vector?
-	for (size_t i = 0; i < nviews; i++) {
 
-		struct wlc_geometry g = *wlc_view_get_geometry(views[i]);
-
-		g.size.h = (g.size.h > 0) ? g.size.h : 100;
-		g.size.w = (g.size.w > 0) ? g.size.w : 100;
-		
-		int32_t view_botton = g.origin.y+g.size.h;
-		int32_t view_right = g.origin.x+g.size.w;
-		
-		g.size.h = MIN(view_botton, r->h) - g.origin.y;
-		g.size.w = MIN(view_right, r->w) - g.origin.x;
-		
-		wlc_view_set_geometry(views[i], 0, &g);
-	}
-}
 /*
 void relayout(wlc_handle output)
 {
@@ -104,50 +79,9 @@ void relayout(wlc_handle output)
 }
 */
 
-static void
-relayout_onecol(const wlc_handle *views, const size_t nviews,
-		const struct wlc_geometry *geo)
-{
-	fprintf(debug_file, "I am in relayout onecol\n");
-	if (nviews == 0)
-		return;
-	size_t y = geo->origin.y;
-	//if nviews == 0, crashes
-	size_t srow = (size_t) (geo->size.h / nviews);
-	for (size_t i = 0; i < nviews; i++) {
-		struct wlc_geometry g = {
-			{geo->origin.x, y},//point
-			{geo->size.w, srow}//size
-		};
-		y += srow;
-		fprintf(debug_file, "the %dth window has geometry, x: %d, y: %d, w: %d, h: %d\n", i, g.origin.x, g.origin.y, g.size.w, g.size.h);
-		wlc_view_set_geometry(views[i], 0, &g);
-	}
-}
-static void
-relayout_onerow(const wlc_handle *views, const size_t nviews,
-		const struct wlc_geometry *geo)
-{
-	fprintf(debug_file, "I am in relayout onerow\n");
-	if (nviews == 0)
-		return;
-	size_t x = geo->origin.x;
-	//if nviews == 0, crashes
-	size_t scol = (size_t) (geo->size.w / nviews);
-	for (size_t i = 0; i < nviews; i++) {
-		struct wlc_geometry g = {
-			{x, geo->origin.y},//point
-			{scol, geo->size.h}//size
-		};
-		x += scol;
-		fprintf(debug_file, "the %dth window has geometry, x: %d, y: %d, w: %d, h: %d\n", i, g.origin.x, g.origin.y, g.size.w, g.size.h);
-		wlc_view_set_geometry(views[i], 0, &g);
-	}
-}
 
-
-
-static void
+/*
+void
 relayout(wlc_handle output)
 {
 	//XXX: the first window cannot be ranged.
@@ -211,7 +145,7 @@ relayout(wlc_handle output)
 
 	//it is useless here: wlc_output_schedule_render(output);
 }
-
+*/
 
 
 void
@@ -374,6 +308,10 @@ main(int argc, char *argv[])
 	debug_file = fopen("/tmp/tw-log", "w+");
 	wlc_log_set_handler(logger);
 
+	//output callbacks
+	wlc_set_output_created_cb(tw_output_created);
+	wlc_set_output_destroyed_cb(tw_output_destroyed);
+	//output callbacks
 	wlc_set_view_created_cb(view_created);
 	wlc_set_view_destroyed_cb(view_destroyed);
 	wlc_set_view_focus_cb(view_focus);
@@ -382,7 +320,7 @@ main(int argc, char *argv[])
 	wlc_set_keyboard_key_cb(keyboard_key);
 	wlc_set_pointer_button_cb(pointer_button);
 	wlc_set_pointer_motion_cb(pointer_motion);
-	wlc_set_output_render_pre_cb(relayout);
+	//wlc_set_output_render_pre_cb(relayout);
 	if (!wlc_init())
 		return EXIT_FAILURE;
 	//we need to have a background global...
