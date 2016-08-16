@@ -10,7 +10,6 @@
 #include <wlc/wlc.h>
 #include <wlc/geometry.h>
 #include <types.h>
-#include "layout.h"
 #include "wm.h"
 
 /* everyone include this */
@@ -77,7 +76,7 @@ extern FILE* debug_file;
 
 
 bool
-tw_output_created(wlc_handle output)
+output_created(wlc_handle output)
 {
 	fprintf(debug_file, "creating output\n");
 	fflush(debug_file);
@@ -100,7 +99,7 @@ tw_output_created(wlc_handle output)
 	//TODO:
 	//change this could later, introducing a switch
 	for (int i = 0; i < mon->nlayouts; i++)
-		mon->layouts[i] = new MasterLayout();
+		mon->layouts[i] = new MasterLayout(output);
 
 	wlc_handle_set_user_data(output, mon);
 	
@@ -113,7 +112,8 @@ tw_output_created(wlc_handle output)
 	return true;
 }
 
-void tw_output_destroyed(wlc_handle output)
+void
+output_destroyed(wlc_handle output)
 {
 	struct tw_monitor *mon = (struct tw_monitor *)wlc_handle_get_user_data(output);
 	//deallocate the 

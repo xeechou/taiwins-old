@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include <stdio.h>	
 #include <string.h>
 #include <stdlib.h>
 #include <stdlib.h>
@@ -26,6 +27,16 @@ void utils_time(char *time_string);
 int logger_setup(const char *fname);
 /** the logger function */	
 void logger(enum wlc_log_type type, const char *str);
+
+
+
+/* this is for debug use, we will mute all this at release */
+extern FILE *debug_file;
+static inline int debug_log(const char *str) {
+	fprintf(debug_file, str);
+	fflush(debug_file);
+	return 0;
+}
 	
 #ifdef __cplusplus
 }

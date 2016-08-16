@@ -1,8 +1,8 @@
 #include <wlc/wlc.h>
 #include <types.h>
 #include "handlers.h"
-#include "layout.h"
 #include "wm.h"
+#include "utils.h"
 ////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////builtin static functions/////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -92,17 +92,15 @@ relayout_onerow(const wlc_handle *views, const size_t nviews,
 void
 MasterLayout::relayout(tw_handle output)
 {
-	fprintf(debug_file, "master-layout 0\n");
-	fflush(debug_file);
+	debug_log("master layout begins\n");
 
-	//fprintf(debug_file, "we have %d master, %d minors")
 	tw_geometry g = *tw_output_get_geometry(output);
 	size_t x, y, w, h;
 	x = g.origin.x, y = g.origin.y;
 	w = g.size.w,   h = g.size.h;
 
 	//TODO delete this line, as you will need to record the views later
-	const tw_handle *views = wlc_output_get_views(output, &nviews);
+	const tw_handle *views = this->getvarr();//correct, but why???
 	
 	assert(master_size > 0.0 && master_size < 1.0);
 	size_t msize = (size_t)(master_size * ((col_based) ? w : h)); 
@@ -119,8 +117,7 @@ MasterLayout::relayout(tw_handle output)
 		g.size.h = msize;
 		relayout_onerow(views, counter, &g);
 	}
-	fprintf(debug_file, "master-layout 1\n");
-	fflush(debug_file);
+	debug_log("master-layout 1\n");
 
         //arrange the minor windows
 	if (ninstack - nmaster == 0)
@@ -132,16 +129,70 @@ MasterLayout::relayout(tw_handle output)
 		g.origin.y = y+msize;
 		relayout_onerow(views + counter, ninstack-counter, &g);
 	}
-	fprintf(debug_file, "master-layout 2\n");
-	fflush(debug_file);
+	debug_log("master-layout 2\n");
 	
 	//arrange the floating windows
 	relayout_float(views + ninstack, nfloating,
 		       tw_output_get_geometry(output));
 
-	fprintf(debug_file, "master-layout 3\n");
-	fflush(debug_file);
+	debug_log("master-layout 3\n");
+	this->rmvarr();
+}
+
+
+tw_handle *
+MasterLayout::getvarr(void)
+{
+	this->views = (tw_handle *)malloc(this->nviews * sizeof(tw_handle));
+	tw_list *l = this->header;
+	for (int i = 0; i < this->nviews; i++) {
+		this->views[i] = ((view_list *)tw_container_of(l, (view_list *)0, link))->view;
+	}
+	return this->views;
+}
+void MasterLayout::rmvarr(void)
+{
+	free(this->views);
+}
+bool MasterLayout::createView(tw_handle view)
+{
+	//you don't really care the output
+	struct tw_view_data *view_data = (struct tw_view_data *)malloc(sizeof(struct tw_view_data));
+	if (!view_data)
+		return false;
 	
+	//processing link
+	view_data->link.l.view = view;
+	tw_list *l = &(view_data->link.l.link);
+	
+	debug_log("master::createView\n");
+	//handle link
+	tw_list_init(l);
+	//append a list to a node make it the header of link
+	tw_list_insert_header(&(this->header), l);
+
+	//update border
+	view_data->border  = &((struct tw_monitor *)
+			      wlc_handle_get_user_data(this->monitor))->border;
+	
+	wlc_handle_set_user_data(view, view_data);
+	debug_log("done master::createView\n");
+
+	//reference account :p ???
+	this->nviews++;
+	return true;
+}
+
+
+void
+MasterLayout::destroyView(tw_handle view)
+{
+	struct tw_view_data *view_data = (struct tw_view_data *)wlc_handle_get_user_data(view);
+	tw_list *l = &(view_data->link.l.link);
+	tw_list_remove_update(&(this->header), l);
+	
+	this->nviews--;
+	free(view_data);
 }
 
 void
@@ -151,8 +202,8 @@ FloatingLayout::relayout(tw_handle output)
 	size_t memb;
 	const tw_handle* views = wlc_output_get_views(output, &memb);
 
-	fprintf(debug_file, "this is floating relayout\n");
-	fflush(debug_file);
+	debug_log("this is floating relayout\n");
+
 	relayout_float(views, memb, tw_output_get_geometry(output));
 }
 
@@ -164,8 +215,7 @@ tw_output_get_current_layout(wlc_handle output)
 	struct tw_monitor *mon = (struct tw_monitor *)
 		wlc_handle_get_user_data(output);
 	if (!mon) {
-		fprintf(debug_file, "no data for me???\n ");
-		fflush(debug_file);
+		debug_log("no data for me??\n");
 		return NULL;
 	}
 	
@@ -187,14 +237,34 @@ tw_output_get_last_layout(wlc_handle output)
 //the global layout method
 void relayout(tw_handle output)
 {
-	fprintf(debug_file, "relayouting\n");
-	fflush(debug_file);
-	//lookup the the current, it may
+	debug_log("relayouting\n");
+
 	Layout *current = tw_output_get_current_layout(output);
-	fprintf(debug_file, "this is global relayout\n");
-	fflush(debug_file);
-	//FIXME looks like my layout classes didn't work
+
+	debug_log("this is the global relayout callback\n");
+
 	current->relayout(output);
-	fprintf(debug_file, "done relayouting\n");
-	fflush(debug_file);
+	
+	debug_log("done relayouting\n");
+}
+
+bool view_created(tw_handle view)
+{
+	tw_handle output = wlc_view_get_output(view);
+	tw_monitor *mon = (struct tw_monitor *)wlc_handle_get_user_data(output);
+	if (!tw_output_get_current_layout(output)->createView(view))
+		return false;
+	
+	wlc_view_set_mask(view, wlc_output_get_mask(output));
+	wlc_view_bring_to_front(view);
+	wlc_view_focus(view);
+	relayout(wlc_view_get_output(view));
+	return true;
+
+}
+void view_destroyed(tw_handle view)
+{
+	relayout(wlc_view_get_output(view));
+//	wlc_view_focus(get_topmost(wlc_view_get_output(view), 0));
+	
 }

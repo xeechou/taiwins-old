@@ -68,9 +68,9 @@ EXTERNC bool pointer_motion(wlc_handle handle, uint32_t time, const struct wlc_p
 
 /***** output callbacks ****/
 /* output create hook */
-EXTERNC bool tw_output_created(wlc_handle output);
+EXTERNC bool output_created(wlc_handle output);
 /* output destroy hook */
-EXTERNC void tw_output_destroyed(wlc_handle output);
+EXTERNC void output_destroyed(wlc_handle output);
 	
 
 #endif

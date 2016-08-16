@@ -8,6 +8,7 @@
 #include <utils.h>
 #include "handlers.h"
 
+//let just put it here
 FILE *debug_file = NULL;
 struct tw_compositor compositor;
 //extern void register_background(void);
@@ -154,7 +155,7 @@ resolution_change_hook(wlc_handle output, const struct wlc_size *from, const str
 	(void)from, (void)to;
 	relayout(output);
 }
-
+/*
 bool
 view_created(wlc_handle view)
 {
@@ -173,7 +174,7 @@ view_destroyed(wlc_handle view)
 	wlc_view_focus(get_topmost(wlc_view_get_output(view), 0));
 	relayout(wlc_view_get_output(view));
 }
-
+*/
 void
 view_focus(wlc_handle view, bool focus)
 {
@@ -309,8 +310,8 @@ main(int argc, char *argv[])
 	wlc_log_set_handler(logger);
 
 	//output callbacks
-	wlc_set_output_created_cb(tw_output_created);
-	wlc_set_output_destroyed_cb(tw_output_destroyed);
+	wlc_set_output_created_cb(output_created);
+	wlc_set_output_destroyed_cb(output_destroyed);
 	//output callbacks
 	wlc_set_view_created_cb(view_created);
 	wlc_set_view_destroyed_cb(view_destroyed);
