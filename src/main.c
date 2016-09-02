@@ -300,7 +300,10 @@ pointer_motion(wlc_handle handle, uint32_t time, const struct wlc_point *positio
 	return (compositor.action.view ? true : false);
 }
 
-
+void view_request_geometry(wlc_handle view, const struct wlc_geometry* g)
+{
+	(void)view, (void)g;
+}
 
 int
 main(int argc, char *argv[])
@@ -313,15 +316,17 @@ main(int argc, char *argv[])
 	wlc_set_output_created_cb(output_created);
 	wlc_set_output_destroyed_cb(output_destroyed);
 	//output callbacks
+	wlc_set_view_request_geometry_cb(view_request_geometry);
+	wlc_set_view_request_move_cb(view_request_move);
+	wlc_set_view_request_resize_cb(view_request_resize);
 	wlc_set_view_created_cb(view_created);
 	wlc_set_view_destroyed_cb(view_destroyed);
 	wlc_set_view_focus_cb(view_focus);
-	wlc_set_view_request_move_cb(view_request_move);
-	wlc_set_view_request_resize_cb(view_request_resize);
 	wlc_set_keyboard_key_cb(keyboard_key);
 	wlc_set_pointer_button_cb(pointer_button);
 	wlc_set_pointer_motion_cb(pointer_motion);
 	//wlc_set_output_render_pre_cb(relayout);
+	//fprintf(stdout, "this line should be printed though\n");
 	if (!wlc_init())
 		return EXIT_FAILURE;
 	//we need to have a background global...
