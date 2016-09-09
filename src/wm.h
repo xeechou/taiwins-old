@@ -1,5 +1,12 @@
 #ifndef TW_WM_H
 #define TW_WM_H
+
+/**
+ *
+ * @file wm.h data types for window manager
+ * this project is c++ without containers, because I don't wanna cause code blob
+ */
+
 #include <stdlib.h>
 
 #include <types.h>
@@ -11,6 +18,7 @@ struct tw_monitor;
 //////////////////////////////////////////////////////////////////////////
 /////////////////////////View specific structures/////////////////////////
 //////////////////////////////////////////////////////////////////////////
+
 
 
 enum tw_border_t {
@@ -104,18 +112,23 @@ tw_output_get_geometry(wlc_handle output)
  */
 class Layout {
 protected:
-	/* base class */
+	/* base Layout class, 
+	   it provides basic array view data type.
+	 */
 	tw_handle monitor;//the monitor it belongs to
-
 	//this should be a circle array, since I can but
 	size_t nviews;	//all the views for that layout of the monitor
-	tw_handle *views; // the view for the given output,
-	
+	tw_handle *views; //the array type of 
+
 public:
 	/* every sub-class inherit this method */
 	virtual void relayout (tw_handle output) = 0;
 	virtual bool createView (tw_handle view) = 0;
 	virtual void destroyView(tw_handle view) = 0;
+	int getViewLoc(const tw_handle view);///getViewLoc return the index of view,
+				       ///return -1 if not found,
+	const tw_handle getViewOffset(const tw_handle, int);
+	///the subclass need to override if they operate on different data type.
 };
 
 
@@ -123,11 +136,11 @@ public:
 
 /* the pure floating layout, no stacked/titing window exists */
 class FloatingLayout : public Layout {
-	/* the link list seems to be the most promissing data type for floating views */
+	/* because of the destroy option, link list seems to be the best data structure all the time */
 public:
-	//void createView(tw_handle view);
+	bool createView(tw_handle view);
 	void relayout(tw_handle output);
-	//void createView(tw_handle view);
+//	void destroyView(tw_handle view);
 };
 
 /**
@@ -145,10 +158,9 @@ class MasterLayout : public Layout {
 	//append the titling windows to the left, floating windows to the end
 	size_t nfloating;
 
-	//data
-	tw_list *header; //header of windows
+	tw_list *header; //master-layout is implemented with link list
 	//this is a adapter for create a template
-	tw_handle *getvarr(void);
+	tw_handle *getvarr(void); //if you
 	void rmvarr(void);
 
 public:
@@ -158,6 +170,10 @@ public:
 	void relayout(tw_handle output);
 	bool createView(tw_handle view);
 	void destroyView(tw_handle view);
+
+	//utils
+	int getViewLoc(const tw_handle view);
+	const tw_handle getViewOffset(const tw_handle, int);
 };
 //for master layout, the best struct to store views is double link
 

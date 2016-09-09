@@ -11,7 +11,9 @@ include_directories(
 
 add_executable(taiwins
   main.c
-  utils.c)
+  utils.c
+  layout.cpp
+  wm.cpp)
 
 target_link_libraries(taiwins
   ${WLC_LIBRARIES}

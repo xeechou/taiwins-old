@@ -64,6 +64,14 @@ relayout_onecol(const wlc_handle *views, const size_t nviews,
 			{geo->origin.x, y},//point
 			{geo->size.w, srow}//size
 		};
+		fprintf(debug_file, "the geometry for %d view is: x %d, y %d, w %d, h %d\n",
+			i,
+			g.origin.x,
+			g.origin.y,
+			g.size.w,
+			g.size.h);
+		fflush(debug_file);
+		
 		y += srow;
 		wlc_view_set_geometry(views[i], 0, &g);
 	}
@@ -87,6 +95,128 @@ relayout_onerow(const wlc_handle *views, const size_t nviews,
 		wlc_view_set_geometry(views[i], 0, &g);
 	}
 }
+
+///////////////////////////////////////////////////////////////////////////
+///////////////////////////////Layout//////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+int
+Layout::getViewLoc(const tw_handle view)
+{
+	for(int i = 0; i < this->nviews;i++) {
+		if (views[i] == view)
+			return i;
+	}
+	return -1;
+}
+const tw_handle
+Layout::getViewOffset(const tw_handle view, int offset)
+{
+	int ind = getViewLoc(view);
+	return (ind+offset >= 0 && ind+view < nviews) ? views[ind+offset] : 0;
+}
+///////////////////////////////////////////////////////////////////////////
+////////////////////////////Layout Ends////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+
+
+
+///////////////////////////////////////////////////////////////////////////
+///////////////////////////Master Layout///////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+
+
+int MasterLayout::getViewLoc(const tw_handle view)
+{
+	tw_list *l = header;
+	for (int i = 0; i < nviews; i++) {
+		const tw_handle v = ((view_list *)tw_container_of(l, (view_list *)0, link))->view;
+		if (view == v)
+			return i;
+		l=l->next;
+	}
+	return -1;
+}
+
+const tw_handle
+MasterLayout::getViewOffset(const tw_handle view, int offset)
+{
+	//a lot easier :-D
+	this->views = getvarr();
+	//FIXME It doesn't work to master layout, why???
+	const tw_handle v = Layout::getViewOffset(view, -offset);
+	rmvarr();
+	return v;
+}
+
+
+/**
+ * @brief create a array of current views.
+ * this code was buggy before, you need to test it somehow
+ */
+tw_handle *
+MasterLayout::getvarr(void)
+{
+	this->views = (tw_handle *)malloc(this->nviews * sizeof(tw_handle));
+	tw_list *l = this->header;
+	for (int i = 0; i < this->nviews; i++) {
+		this->views[i] = ((view_list *)tw_container_of(l, (view_list *)0, link))->view;
+		l = l->next;
+	}
+	return this->views;
+}
+
+
+/**
+ * @brief rm this array after you done relayout.
+ */
+void MasterLayout::rmvarr(void)
+{
+	free(this->views);
+}
+
+bool MasterLayout::createView(tw_handle view)
+{
+	//just create a view, nothing more
+	//you don't really care the output
+	struct tw_view_data *view_data = (struct tw_view_data *)malloc(sizeof(struct tw_view_data));
+	if (!view_data)
+		return false;
+	
+	//processing link
+	view_data->link.l.view = view;
+	tw_list *l = &(view_data->link.l.link);
+	
+	debug_log("master::createView\n");
+	//handle link
+	tw_list_init(l);
+	//append a list to a node make it the header of link
+	tw_list_insert_header(&(this->header), l);
+
+	//update border
+	view_data->border = &((struct tw_monitor *)
+			      wlc_handle_get_user_data(this->monitor))->border;
+	
+	wlc_handle_set_user_data(view, view_data);
+	debug_log("done master::createView\n");
+
+	//reference account :p ???
+	this->nviews++;
+	return true;
+}
+
+
+
+void
+MasterLayout::destroyView(tw_handle view)
+{
+	struct tw_view_data *view_data = (struct tw_view_data *)wlc_handle_get_user_data(view);
+	tw_list *l = &(view_data->link.l.link);
+	tw_list_remove_update(&(this->header), l);
+	
+	this->nviews--;
+	free(view_data);
+}
+
 
 
 void
@@ -140,59 +270,23 @@ MasterLayout::relayout(tw_handle output)
 }
 
 
-tw_handle *
-MasterLayout::getvarr(void)
-{
-	this->views = (tw_handle *)malloc(this->nviews * sizeof(tw_handle));
-	tw_list *l = this->header;
-	for (int i = 0; i < this->nviews; i++) {
-		this->views[i] = ((view_list *)tw_container_of(l, (view_list *)0, link))->view;
-	}
-	return this->views;
-}
-void MasterLayout::rmvarr(void)
-{
-	free(this->views);
-}
-bool MasterLayout::createView(tw_handle view)
-{
-	//you don't really care the output
-	struct tw_view_data *view_data = (struct tw_view_data *)malloc(sizeof(struct tw_view_data));
-	if (!view_data)
-		return false;
-	
-	//processing link
-	view_data->link.l.view = view;
-	tw_list *l = &(view_data->link.l.link);
-	
-	debug_log("master::createView\n");
-	//handle link
-	tw_list_init(l);
-	//append a list to a node make it the header of link
-	tw_list_insert_header(&(this->header), l);
-
-	//update border
-	view_data->border  = &((struct tw_monitor *)
-			      wlc_handle_get_user_data(this->monitor))->border;
-	
-	wlc_handle_set_user_data(view, view_data);
-	debug_log("done master::createView\n");
-
-	//reference account :p ???
-	this->nviews++;
-	return true;
-}
+///////////////////////////////////////////////////////////////////////////
+////////////////////////Master Layout ends/////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
 
 
-void
-MasterLayout::destroyView(tw_handle view)
+
+///////////////////////////////////////////////////////////////////////////
+//////////////////////////Floating Layout//////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+
+bool
+FloatingLayout::createView(tw_handle view)
 {
-	struct tw_view_data *view_data = (struct tw_view_data *)wlc_handle_get_user_data(view);
-	tw_list *l = &(view_data->link.l.link);
-	tw_list_remove_update(&(this->header), l);
-	
-	this->nviews--;
-	free(view_data);
+	//it really doesn't matter, just put it on the top of the list
+	//0) insert at the end of view array.
+	//wlc_view_bring_to_front(view)
+	//we don't to relayout here
 }
 
 void
@@ -208,6 +302,9 @@ FloatingLayout::relayout(tw_handle output)
 }
 
 
+///////////////////////////////////////////////////////////////////////////
+//////////////////////////Floating Layout//////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
 
 static inline Layout*
 tw_output_get_current_layout(wlc_handle output)
@@ -233,7 +330,14 @@ tw_output_get_last_layout(wlc_handle output)
 }
 
 
+static inline Layout*
+tw_view_get_layout(tw_handle view)
+{
+	return tw_output_get_current_layout(wlc_view_get_output(view));
+}
 
+
+/////////////////////////////handles//////////////////////
 //the global layout method
 void relayout(tw_handle output)
 {
@@ -250,21 +354,43 @@ void relayout(tw_handle output)
 
 bool view_created(tw_handle view)
 {
+	//routine:
+	//0): create a view: which is most likely insert a node to a list
 	tw_handle output = wlc_view_get_output(view);
-	tw_monitor *mon = (struct tw_monitor *)wlc_handle_get_user_data(output);
-	if (!tw_output_get_current_layout(output)->createView(view))
+	Layout *layout = tw_output_get_current_layout(output);//it shouldn't be
+							      //Null, one output
+							      //should at least
+							      //has one layout
+	if (!layout->createView(view))
 		return false;
-	
+
+	//1): setting up the view visibility attributes, focus attributes, etc.
 	wlc_view_set_mask(view, wlc_output_get_mask(output));
-	wlc_view_bring_to_front(view);
+	wlc_view_bring_to_front(view); //you have to call it for float layout
 	wlc_view_focus(view);
+	//2): relayout
 	relayout(wlc_view_get_output(view));
 	return true;
 
 }
+
+
 void view_destroyed(tw_handle view)
 {
+	tw_handle output, pview;
+	Layout *layout;
+	//routine:
+	//0): find out the most previous view.
+	output = wlc_view_get_output(view);
+	layout = tw_output_get_current_layout(output);
+	//there are always problems, if we use link list, we may end up find
+	//view it self. If we use array, we probably end up get invalid index
+	pview = layout->getViewOffset(view, -1);
+
+	layout->destroyView(view);
+	wlc_view_focus(pview);
 	relayout(wlc_view_get_output(view));
-//	wlc_view_focus(get_topmost(wlc_view_get_output(view), 0));
-	
+
 }
+
+

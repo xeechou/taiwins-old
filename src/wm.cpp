@@ -92,7 +92,6 @@ output_created(wlc_handle output)
 	//setup the geometry, temporary code, chage this later
 	mon->geometry.origin = (tw_point){0, 0};
 	mon->geometry.size = *wlc_output_get_resolution(output);
-
 	mon->nlayouts = 1;
 	mon->layouts = (Layout **)malloc(sizeof(Layout*) * mon->nlayouts);
 
