@@ -13,7 +13,9 @@ add_executable(taiwins
   main.c
   utils.c
   layout.cpp
-  wm.cpp)
+  wm.cpp
+  #types.c
+  )
 
 target_link_libraries(taiwins
   ${WLC_LIBRARIES}

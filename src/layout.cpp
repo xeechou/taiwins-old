@@ -64,13 +64,13 @@ relayout_onecol(const wlc_handle *views, const size_t nviews,
 			{geo->origin.x, y},//point
 			{geo->size.w, srow}//size
 		};
-		fprintf(debug_file, "the geometry for %d view is: x %d, y %d, w %d, h %d\n",
-			i,
-			g.origin.x,
-			g.origin.y,
-			g.size.w,
-			g.size.h);
-		fflush(debug_file);
+		//fprintf(debug_file, "the geometry for %d view is: x %d, y %d, w %d, h %d\n",
+		//	i,
+		//	g.origin.x,
+		//	g.origin.y,
+		//	g.size.w,
+		//	g.size.h);
+		//fflush(debug_file);
 		
 		y += srow;
 		wlc_view_set_geometry(views[i], 0, &g);
@@ -99,10 +99,28 @@ relayout_onerow(const wlc_handle *views, const size_t nviews,
 ///////////////////////////////////////////////////////////////////////////
 ///////////////////////////////Layout//////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
+
+bool
+Layout::update_views(void)
+{
+	//free previous information
+	if (this->views)
+		free(this->views);
+	if ( !(views = (tw_handle *)malloc(sizeof(tw_handle) * nviews)) )
+		return false;
+	
+	tw_list *l = this->header;
+	for (int i = 0; i < this->nviews; i++) {
+		this->views[i] = ((view_list *)tw_container_of(l, (view_list *)0, link))->view;
+		l = l->next;
+	}
+	return true;
+}
+
 int
 Layout::getViewLoc(const tw_handle view)
 {
-	for(int i = 0; i < this->nviews;i++) {
+	for(int i = 0; i < this->nviews; i++) {
 		if (views[i] == view)
 			return i;
 	}
@@ -112,7 +130,9 @@ const tw_handle
 Layout::getViewOffset(const tw_handle view, int offset)
 {
 	int ind = getViewLoc(view);
-	return (ind+offset >= 0 && ind+view < nviews) ? views[ind+offset] : 0;
+	//fprintf(debug_file, "WE WANT TO GET OFFSET %d, nviews: %d, loc: %d \n", offset, nviews, ind);
+	//fflush(debug_file);
+	return (ind+offset >= 0 && ind+offset < nviews) ? views[ind+offset] : 0;
 }
 ///////////////////////////////////////////////////////////////////////////
 ////////////////////////////Layout Ends////////////////////////////////////
@@ -140,11 +160,7 @@ int MasterLayout::getViewLoc(const tw_handle view)
 const tw_handle
 MasterLayout::getViewOffset(const tw_handle view, int offset)
 {
-	//a lot easier :-D
-	this->views = getvarr();
-	//FIXME It doesn't work to master layout, why???
 	const tw_handle v = Layout::getViewOffset(view, -offset);
-	rmvarr();
 	return v;
 }
 
@@ -152,6 +168,7 @@ MasterLayout::getViewOffset(const tw_handle view, int offset)
 /**
  * @brief create a array of current views.
  * this code was buggy before, you need to test it somehow
+ * now it works. There should be no problems for it right now
  */
 tw_handle *
 MasterLayout::getvarr(void)
@@ -174,6 +191,10 @@ void MasterLayout::rmvarr(void)
 	free(this->views);
 }
 
+/** 
+ * @brief this layout method only update the internal view data structure, it
+ * should not do relayout, Relayout will be done in global handles
+ */
 bool MasterLayout::createView(tw_handle view)
 {
 	//just create a view, nothing more
@@ -201,11 +222,15 @@ bool MasterLayout::createView(tw_handle view)
 
 	//reference account :p ???
 	this->nviews++;
+
+	this->update_views();
 	return true;
 }
 
-
-
+/** 
+ * @brief this layout method only update the internal view data structure, it
+ * should not do relayout, Relayout will be done in global handles
+ */
 void
 MasterLayout::destroyView(tw_handle view)
 {
@@ -215,10 +240,14 @@ MasterLayout::destroyView(tw_handle view)
 	
 	this->nviews--;
 	free(view_data);
+	//call this at last
+	this->update_views();
 }
 
 
-
+/**
+ * @brief the specific relayout method, only be called in relayout handles
+ */ 
 void
 MasterLayout::relayout(tw_handle output)
 {
@@ -230,8 +259,6 @@ MasterLayout::relayout(tw_handle output)
 	w = g.size.w,   h = g.size.h;
 
 	//TODO delete this line, as you will need to record the views later
-	const tw_handle *views = this->getvarr();//correct, but why???
-	
 	assert(master_size > 0.0 && master_size < 1.0);
 	size_t msize = (size_t)(master_size * ((col_based) ? w : h)); 
 	size_t ninstack = nviews - nfloating;
@@ -241,10 +268,10 @@ MasterLayout::relayout(tw_handle output)
 	if (counter == 0)
 		return;
 	if (col_based) {
-		g.size.w = msize;
+		g.size.w = (nviews > nmaster) ? msize : w;
 		relayout_onecol(views, counter, &g);
 	} else {
-		g.size.h = msize;
+		g.size.h = (nviews > nmaster) ? msize : h;
 		relayout_onerow(views, counter, &g);
 	}
 	debug_log("master-layout 1\n");
@@ -266,7 +293,6 @@ MasterLayout::relayout(tw_handle output)
 		       tw_output_get_geometry(output));
 
 	debug_log("master-layout 3\n");
-	this->rmvarr();
 }
 
 
@@ -342,16 +368,13 @@ tw_view_get_layout(tw_handle view)
 void relayout(tw_handle output)
 {
 	debug_log("relayouting\n");
-
 	Layout *current = tw_output_get_current_layout(output);
-
-	debug_log("this is the global relayout callback\n");
-
 	current->relayout(output);
-	
 	debug_log("done relayouting\n");
 }
 
+
+//although
 bool view_created(tw_handle view)
 {
 	//routine:
@@ -371,7 +394,6 @@ bool view_created(tw_handle view)
 	//2): relayout
 	relayout(wlc_view_get_output(view));
 	return true;
-
 }
 
 
@@ -385,12 +407,11 @@ void view_destroyed(tw_handle view)
 	layout = tw_output_get_current_layout(output);
 	//there are always problems, if we use link list, we may end up find
 	//view it self. If we use array, we probably end up get invalid index
-	pview = layout->getViewOffset(view, -1);
 
+
+	//TODO: we need to come up with a constant value for next view
+	pview = layout->getViewOffset(view, 1);//get next view...
 	layout->destroyView(view);
 	wlc_view_focus(pview);
 	relayout(wlc_view_get_output(view));
-
 }
-
-

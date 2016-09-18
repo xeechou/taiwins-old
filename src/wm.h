@@ -119,24 +119,28 @@ protected:
 	//this should be a circle array, since I can but
 	size_t nviews;	//all the views for that layout of the monitor
 	tw_handle *views; //the array type of 
+	tw_list *header; //master-layout is implemented with link list
 
+	int offset_next;
 public:
+	//replace getvarr with update_views. Call update_views everytime the
+	//view information changes
+	bool update_views(void);
 	/* every sub-class inherit this method */
 	virtual void relayout (tw_handle output) = 0;
 	virtual bool createView (tw_handle view) = 0;
 	virtual void destroyView(tw_handle view) = 0;
-	int getViewLoc(const tw_handle view);///getViewLoc return the index of view,
+	virtual int getViewLoc(const tw_handle view);///getViewLoc return the index of view,
 				       ///return -1 if not found,
-	const tw_handle getViewOffset(const tw_handle, int);
+	virtual const tw_handle getViewOffset(const tw_handle, int);
 	///the subclass need to override if they operate on different data type.
 };
-
-
-
 
 /* the pure floating layout, no stacked/titing window exists */
 class FloatingLayout : public Layout {
 	/* because of the destroy option, link list seems to be the best data structure all the time */
+	//floating layout will still use the tw_list as view data structures. It
+	//now support swap, delete functions, all in O(1).
 public:
 	bool createView(tw_handle view);
 	void relayout(tw_handle output);
@@ -158,8 +162,7 @@ class MasterLayout : public Layout {
 	//append the titling windows to the left, floating windows to the end
 	size_t nfloating;
 
-	tw_list *header; //master-layout is implemented with link list
-	//this is a adapter for create a template
+	//deprecated methods
 	tw_handle *getvarr(void); //if you
 	void rmvarr(void);
 
@@ -171,11 +174,10 @@ public:
 	bool createView(tw_handle view);
 	void destroyView(tw_handle view);
 
-	//utils
 	int getViewLoc(const tw_handle view);
 	const tw_handle getViewOffset(const tw_handle, int);
+
 };
-//for master layout, the best struct to store views is double link
 
 
 #endif /* EOF */
