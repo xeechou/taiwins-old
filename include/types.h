@@ -60,7 +60,7 @@ tw_list_append_list(tw_list *list, tw_list *other)
 	other->prev = tmp;
 }
 
-//this code should be safe,
+//swap should be safe if one and another are both valid
 static inline void
 tw_list_swap(tw_list *one, tw_list *another)
 {
@@ -86,33 +86,39 @@ tw_list_swap(tw_list *one, tw_list *another)
 static inline void
 tw_list_swap_header_update(tw_list **header, tw_list *another)
 {
+	//always looks for the boundary problems
+	if (!(*header)) {
+		*header = another;
+		return;
+	}
 	tw_list_swap(*header, another);
 	*header = another;
 }
 
 static inline void
-tw_list_append_elem(tw_list *header, tw_list *elem)
+tw_list_append_elem(tw_list **header, tw_list *elem)
 {
+	//we somehow assume elem is always valid, header is valid, but *header maynot
+	//it will casue problem if header is null
+	if (! (*header) ) {
+		*header = elem;
+		return;
+	}
 	//append a elem to the the list is actually just insert it before header
-	header->prev->next = elem;
-	elem->prev = header->prev;
-	header->prev = elem;
-	elem->next = header;
+	(*header)->prev->next = elem;
+	elem->prev = (*header)->prev;
+	(*header)->prev = elem;
+	elem->next = *header;
 }
 
 /* Insert a new header to the tw_list @header */
 static inline void
 tw_list_insert_header(tw_list **header, tw_list *elem)
 {
-	//boundary situation
-	if(!(*header)) {
-		*header = elem;
-		return;
-	}
-	tw_list_append_elem(*header, elem);
-	*header = elem;//this is super simple
+	tw_list_append_elem(header, elem);
+	*header = elem;
 }
-/* TODO: this code is buggy!!! FIXME!!! */
+
 static inline void
 tw_list_remove_update(tw_list **header, tw_list *elem)
 {

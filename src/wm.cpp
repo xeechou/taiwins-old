@@ -94,7 +94,7 @@ output_created(wlc_handle output)
 	//TODO:
 	//change this could later, introducing a switch
 	for (int i = 0; i < mon->nlayouts; i++)
-		mon->layouts[i] = new MasterLayout(output);
+		mon->layouts[i] = new FloatingLayout(output);
 
 	wlc_handle_set_user_data(output, mon);
 	

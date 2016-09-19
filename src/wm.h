@@ -64,9 +64,9 @@ struct tw_view_data {
 	// in relayout method, we always assume the geometry is the content
 	// geometry, that is, borders are not included
 	
-	const tw_border *border;
+	const tw_border *border; //borders should vary from views to views
 	size_t scale; // windows can have their own scales, for those which
-		      // doesn't support HIDPI, default 1.
+		      // doesn't support HIDPI, default 1. It varis from monitors to monitors
 	tw_size actual; // when the view need to be scaled, we stores the actual size for it
 	view_link link;
 };
@@ -142,9 +142,10 @@ class FloatingLayout : public Layout {
 	//floating layout will still use the tw_list as view data structures. It
 	//now support swap, delete functions, all in O(1).
 public:
+	FloatingLayout(tw_handle output) {this->nviews = 0; this->views = NULL; this->monitor = output; this->header = NULL;}
 	bool createView(tw_handle view);
 	void relayout(tw_handle output);
-//	void destroyView(tw_handle view);
+	void destroyView(tw_handle view);
 };
 
 /**
@@ -168,8 +169,11 @@ class MasterLayout : public Layout {
 
 public:
 	MasterLayout(tw_handle output) :
-		col_based(true), nmaster(2), master_size(0.5), nfloating(0) { this->monitor = output; this->header = NULL;
-		this->nviews = 0;}
+		col_based(true), nmaster(2), master_size(0.5), nfloating(0)
+	{
+		this->monitor = output; this->header = NULL;
+		this->nviews = 0; this->views = NULL;
+	}
 	void relayout(tw_handle output);
 	bool createView(tw_handle view);
 	void destroyView(tw_handle view);
