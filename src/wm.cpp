@@ -71,15 +71,11 @@ void adjust_border(tw_handle view)
 //////////////////////////////////////////////////////////////
 
 //for the debugging purpose
-#include <stdio.h>
-extern FILE* debug_file;
-
-
+#include "utils.h"
 bool
 output_created(wlc_handle output)
 {
-	fprintf(debug_file, "creating output\n");
-	fflush(debug_file);
+	debug_log("creating output\n");
 	struct tw_monitor *mon = (struct tw_monitor *)malloc(sizeof(struct tw_monitor));
 	mon->output = output;
 	//setup scale based on name.
@@ -106,19 +102,20 @@ output_created(wlc_handle output)
 	mon->lays_recent[0] = 0;
 	mon->lays_recent[1] = 0;
 	
-	fprintf(debug_file, "done creating output\n");
-	fflush(debug_file);
+	debug_log("done creating output\n");
 	return true;
 }
 
 void
 output_destroyed(wlc_handle output)
 {
+	debug_log("closing output\n");
 	struct tw_monitor *mon = (struct tw_monitor *)wlc_handle_get_user_data(output);
 	//deallocate the 
 	
 	for (int i = 0; i < mon->nlayouts; i++)
 		delete mon->layouts[i];
 	free(mon);
+	debug_log("done closing output\n");
 }
 

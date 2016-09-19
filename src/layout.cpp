@@ -99,19 +99,18 @@ relayout_onerow(const wlc_handle *views, const size_t nviews,
 ///////////////////////////////////////////////////////////////////////////
 ///////////////////////////////Layout//////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
-
 bool
 Layout::update_views(void)
 {
 	//free previous information
-	if (this->views)
-		free(this->views);
+	if (views)
+		free(views);
 	if ( !(views = (tw_handle *)malloc(sizeof(tw_handle) * nviews)) )
 		return false;
-	
-	tw_list *l = this->header;
-	for (int i = 0; i < this->nviews; i++) {
-		this->views[i] = ((view_list *)tw_container_of(l, (view_list *)0, link))->view;
+
+	tw_list *l = this->header;//header is after deleting to one view
+	for (size_t i = 0; i < nviews; i++) {
+		views[i] = ((view_list *)tw_container_of(l, (view_list *)0, link))->view;
 		l = l->next;
 	}
 	return true;
@@ -237,11 +236,13 @@ MasterLayout::destroyView(tw_handle view)
 	struct tw_view_data *view_data = (struct tw_view_data *)wlc_handle_get_user_data(view);
 	tw_list *l = &(view_data->link.l.link);
 	tw_list_remove_update(&(this->header), l);
-	
+	debug_log("Master destroy View 1\n");
 	this->nviews--;
 	free(view_data);
+	debug_log("Master destroy View 2\n");
 	//call this at last
-	this->update_views();
+	update_views();//we have this problem???
+	debug_log("Master destroy View 3\n");
 }
 
 
@@ -399,6 +400,7 @@ bool view_created(tw_handle view)
 
 void view_destroyed(tw_handle view)
 {
+	debug_log("starting destroy view\n");
 	tw_handle output, pview;
 	Layout *layout;
 	//routine:
@@ -407,11 +409,15 @@ void view_destroyed(tw_handle view)
 	layout = tw_output_get_current_layout(output);
 	//there are always problems, if we use link list, we may end up find
 	//view it self. If we use array, we probably end up get invalid index
-
+	debug_log("DESTROY VIEW 2\n");
 
 	//TODO: we need to come up with a constant value for next view
 	pview = layout->getViewOffset(view, 1);//get next view...
-	layout->destroyView(view);
+	debug_log("DESTROY VIEW 3\n");	
+	layout->destroyView(view);//we have problems here!
+	debug_log("DESTROY VIEW 4\n");	
 	wlc_view_focus(pview);
+	debug_log("DESTROY VIEW 5\n");	
 	relayout(wlc_view_get_output(view));
+	debug_log("done destroy view\n");
 }
