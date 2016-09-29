@@ -5,13 +5,23 @@
 #include <wlc/geometry.h>
 #include <wlc/wlc-render.h>
 #include <linux/input.h>
-#include <utils.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <signal.h>
+#include "utils.h"
 #include "handlers.h"
 
 //let just put it here
 FILE *debug_file = NULL;
 struct tw_compositor compositor;
 //extern void register_background(void);
+
+static void
+wait_children(int signum)
+{
+	pid_t pid = wait(NULL);
+	debug_log("wait_children called\n");
+}
 
 static bool
 start_interactive_action(wlc_handle view, const struct wlc_point *origin)
@@ -204,6 +214,7 @@ keyboard_key(wlc_handle view, uint32_t time, const struct wlc_modifiers *modifie
 		if (view) {
 			if (modifiers->mods & WLC_BIT_MOD_CTRL && sym == XKB_KEY_q) {
 				wlc_view_close(view);
+				debug_log("release the view\n");
 				return true;
 			} else if (modifiers->mods & WLC_BIT_MOD_CTRL && sym == XKB_KEY_Down) {
 				wlc_view_send_to_back(view);
@@ -218,6 +229,10 @@ keyboard_key(wlc_handle view, uint32_t time, const struct wlc_modifiers *modifie
 		} else if (modifiers->mods & WLC_BIT_MOD_CTRL && sym == XKB_KEY_Return) {
 			char *terminal = (getenv("TERMINAL") ? getenv("TERMINAL") : "weston-terminal");
 			wlc_exec(terminal, (char *const[]) { terminal, NULL });
+			return true;
+		} else if (modifiers->mods & WLC_BIT_MOD_CTRL && sym == XKB_KEY_f) {
+			char *flower = "weston-flower";
+			wlc_exec(flower, (char *const[]) {flower, NULL});
 			return true;
 		}
 	}
@@ -331,7 +346,9 @@ main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	//we need to have a background global...
 	//register_background();
-
+	if (signal(SIGCHLD, wait_children) == SIG_ERR)
+	    return -1;
+	
 	wlc_run();
 	return EXIT_SUCCESS;
 }
