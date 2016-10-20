@@ -1,0 +1,2 @@
+/home/developer/Projects/taiwins/libs/common-bin/lib/libcommon.a
+/home/developer/Projects/taiwins/libs/common-bin/include/types.h
