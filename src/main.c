@@ -328,7 +328,7 @@ main(int argc, char *argv[])
 	wlc_log_set_handler(logger);
 
 	//output callbacks
-	wlc_set_output_created_cb(output_created);
+	wlc_set_output_created_cb(output_created);//this get called everytime I switched between sessions
 	wlc_set_output_destroyed_cb(output_destroyed);
 	//output callbacks
 	wlc_set_view_request_geometry_cb(view_request_geometry);

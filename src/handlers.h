@@ -17,8 +17,10 @@
 
 #include <wlc/wlc.h>
 #include <wlc/geometry.h>
+#include <types.h>
 
 
+/* TODO change this struct later **/
 struct tw_compositor {
 	struct {
 		wlc_handle view;

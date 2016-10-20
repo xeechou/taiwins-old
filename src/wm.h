@@ -19,8 +19,6 @@ struct tw_monitor;
 /////////////////////////View specific structures/////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
-
-
 enum tw_border_t {
 	TW_BORDER_NONE, /* no border, implementation can be intergraded to TW_BORDER_PIX */
 	TW_BORDER_PIX,  /* a few pixels as border */
@@ -28,7 +26,6 @@ enum tw_border_t {
 };
 
 struct tw_border {
-	tw_border_t type; 
 	size_t stitle; /* size of title, not used in pixel type */
 	size_t sborder; /* the size of top, not used in regular type */
 
@@ -63,12 +60,14 @@ typedef union view_link {
 struct tw_view_data {
 	// in relayout method, we always assume the geometry is the content
 	// geometry, that is, borders are not included
-	
+	tw_border_t type; 
 	const tw_border *border; //borders should vary from views to views
 	size_t scale; // windows can have their own scales, for those which
 		      // doesn't support HIDPI, default 1. It varis from monitors to monitors
 	tw_size actual; // when the view need to be scaled, we stores the actual size for it
 	view_link link;
+	
+
 };
 
 /**
@@ -91,6 +90,9 @@ struct tw_monitor {
 
 	//init border for the monitor
 	struct tw_border border;
+
+	//the 2D information for this monitor
+	tw_point location;
 };
 
 

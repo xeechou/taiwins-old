@@ -7,7 +7,9 @@ include_directories(
 	${LIBINPUT_INCLUDE_DIRS}
 	${CAIRO_INCLUDE_DIRS}
 	${PANGO_INCLUDE_DIRS}
+	${common_INCLUDE_DIRS}
 )
+
 
 add_executable(taiwins
   main.c
@@ -22,4 +24,6 @@ target_link_libraries(taiwins
   ${XKBCOMMON_LIBRARIES}
   ${WAYLAND_SERVER_LIBRARIES}
   ${LIBINPUT_LIBRARIES}
+  #  ${common_LIBRARY}
+  _common
   )

@@ -8,11 +8,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 
-//TODO remove this!!!!
-#include <stdio.h>
-extern FILE* debug_file;
-//TODO remove this!!!!
-
 /**
  * 
  * @brief the simple floating windows relayout strategy, which is actually
@@ -104,6 +99,7 @@ relayout_onerow(const wlc_handle *views, const size_t nviews,
 bool
 Layout::update_views(void)
 {
+//	debug_log("this is called\n");
 	//free previous information
 	if (views)
 		free(views);
@@ -263,12 +259,12 @@ MasterLayout::relayout(tw_handle output)
 	size_t x, y, w, h;
 	x = g.origin.x, y = g.origin.y;
 	w = g.size.w,   h = g.size.h;
-
+//	fprintf(debug_file, "we have %d views to relayout, which is %d\n", wl_list_length(header), nviews);
+//	fflush(debug_file);
 	//TODO delete this line, as you will need to record the views later
 	assert(master_size > 0.0 && master_size < 1.0);
 	size_t msize = (size_t)(master_size * ((col_based) ? w : h)); 
 	size_t ninstack = nviews - nfloating;
-
 	//the counter records how many windows to rerange this time
 	size_t counter = (ninstack > nmaster) ? nmaster : ninstack;
 	if (counter == 0)
@@ -364,8 +360,7 @@ void
 FloatingLayout::relayout(tw_handle output)
 {
 	debug_log("Floating relayout\n");
-	fprintf(debug_file, "we have %d views, the header is %p\n", this->nviews, this->views);
-	fflush(debug_file);
+	debug_log("we have %d views, the header is %p", this->nviews, this->views);
 	relayout_float(this->views, this->nviews, tw_output_get_geometry(output));
 	debug_log("Done Floating relayout\n");
 }

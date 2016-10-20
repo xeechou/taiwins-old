@@ -8,9 +8,9 @@ extern "C" {
 #include <stdio.h>	
 #include <string.h>
 #include <stdlib.h>
-#include <stdlib.h>
 #include <unistd.h>
-#include <wlc/wlc.h>	
+#include <stdarg.h>	
+#include <wlc/wlc.h>
 /* debug */
 
 #define tmp_dir() getenv("XDG_RUNTIME_DIR")
@@ -32,11 +32,14 @@ void logger(enum wlc_log_type type, const char *str);
 
 /* this is for debug use, we will mute all this at release */
 extern FILE *debug_file;
-static inline int debug_log(const char *str) {
-	fprintf(debug_file, str);
+static inline int debug_log(const char *format, ...) {
+	va_list args;
+	va_start(args, format);
+	vfprintf(debug_file, format, args);
+	va_end(args);
 	fflush(debug_file);
 	return 0;
-}
+}	
 	
 #ifdef __cplusplus
 }

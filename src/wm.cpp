@@ -15,6 +15,8 @@
 /* everyone include this */
 #include "handlers.h"
 
+extern struct tw_compositor compositor;
+
 /**
  * @brief allocate space for the border of a view
  * 
@@ -75,7 +77,10 @@ void adjust_border(tw_handle view)
 bool
 output_created(wlc_handle output)
 {
-	debug_log("creating output\n");
+	if (wlc_handle_get_user_data(output)) //if we already have the output
+		return true;
+	
+	debug_log("%s:creating output %d\n", wlc_output_get_name(output), output);
 	struct tw_monitor *mon = (struct tw_monitor *)malloc(sizeof(struct tw_monitor));
 	mon->output = output;
 	//setup scale based on name.
