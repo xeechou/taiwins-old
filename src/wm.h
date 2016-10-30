@@ -120,7 +120,9 @@ protected:
 	tw_handle monitor;//the monitor it belongs to
 	//this should be a circle array, since I can but
 	size_t nviews;	//all the views for that layout of the monitor
-	tw_handle *views; //the array type of 
+	
+	//the array type of views, this array should always be available
+	tw_handle *views; 
 	tw_list *header; //master-layout is implemented with link list
 
 	int offset_next;
@@ -132,9 +134,12 @@ public:
 	virtual void relayout (tw_handle output) = 0;
 	virtual bool createView (tw_handle view) = 0;
 	virtual void destroyView(tw_handle view) = 0;
-	virtual int getViewLoc(const tw_handle view);///getViewLoc return the index of view,
-				       ///return -1 if not found,
-	virtual const tw_handle getViewOffset(const tw_handle, int);
+	///return the location of the view, here it use brute force
+	virtual int getViewLoc(const tw_handle view);
+
+	//return a view by the offset, search in both directions since offset is
+	//an abs value
+	virtual const tw_handle getViewOffset(const tw_handle view, size_t offset);
 	///the subclass need to override if they operate on different data type.
 };
 
@@ -181,7 +186,7 @@ public:
 	void destroyView(tw_handle view);
 
 	int getViewLoc(const tw_handle view);
-	const tw_handle getViewOffset(const tw_handle, int);
+	const tw_handle getViewOffset(const tw_handle, size_t);
 
 };
 
