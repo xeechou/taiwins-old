@@ -1,6 +1,12 @@
 * Taiwins
 ** TODO-list
-*** DONE using wlc-compositor ready callback to create a simple program
+*** TODO desktop shell protocol design and implementations [25%]
+    - [X] write dumb wlc-compositor ready callback
+    - [ ] load client program
+    - [ ] protocols
+      - [ ] implement dummy one function protocol
+    - [ ] coming up
+
 *** TODO desktop-bar protocol, design (Then how am I gonna start a bar myself?)
     wlc has compositor ready callback, which you can use it for calling a
     wayland client, we should first implement this, can adding one function at a time.
