@@ -26,8 +26,8 @@
 *** DONE background protocol test
     CLOSED: [2016-04-17 Sun 14:59]
 *** DONE renew taiwins repo structure 
-
 ** NOTE input handler
+*** TODO we want a feature, use keyboard to guide mouse
 *** TODO design context stack
 *** TODO design keyinput struct
 *** TODO override keyinput struct

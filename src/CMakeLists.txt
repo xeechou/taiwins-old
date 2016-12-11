@@ -16,6 +16,7 @@ add_executable(taiwins
   utils.c
   layout.cpp
   wm.cpp
+  handlers.cpp
   #types.c
   )
 
@@ -24,6 +25,5 @@ target_link_libraries(taiwins
   ${XKBCOMMON_LIBRARIES}
   ${WAYLAND_SERVER_LIBRARIES}
   ${LIBINPUT_LIBRARIES}
-  #  ${common_LIBRARY}
-  _common
+  ${common_LIBRARY}
   )

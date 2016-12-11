@@ -5,6 +5,9 @@
  * window manager features include layout structure of a wm, and the 
  * relayout strategy, in modulized structures, thus we are able to 
  * change the strategy later.
+ *
+ * TODO: In the end, we need to make this file into a c file, mixing c/c++ is
+ * really a bad idea? Or why it is a bad idea?
  */
 #include <stdlib.h>
 #include <wlc/wlc.h>
@@ -16,7 +19,6 @@
 #include "handlers.h"
 
 extern struct tw_compositor compositor;
-
 /**
  * @brief allocate space for the border of a view
  * 
@@ -73,7 +75,7 @@ void adjust_border(tw_handle view)
 //////////////////////////////////////////////////////////////
 
 //for the debugging purpose
-#include "utils.h"
+#include "debug.h"
 bool
 output_created(wlc_handle output)
 {
@@ -89,7 +91,6 @@ output_created(wlc_handle output)
 
 	//FIXME!!!!
 	mon->scale = 1;
-	
 	//setup the geometry, temporary code, chage this later
 	mon->geometry.origin = (tw_point){0, 0};
 	mon->geometry.size = *wlc_output_get_resolution(output);

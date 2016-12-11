@@ -45,6 +45,7 @@ static inline uint32_t min32(uint32_t a, uint32_t b)
 	return (a < b) ? a : b;
 }
 
+EXTERNC void compositor_ready_hook(void);
 
 /** hook for resolution change, update layout */
 EXTERNC void resolution_change_hook(wlc_handle output, const struct wlc_size *from, const struct wlc_size *to);

@@ -8,7 +8,8 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <signal.h>
-#include "utils.h"
+#include <utils.h>
+#include "debug.h"
 #include "handlers.h"
 
 //let just put it here
@@ -28,7 +29,6 @@ start_interactive_action(wlc_handle view, const struct wlc_point *origin)
 {
 	if (compositor.action.view)
 		return false;
-
 	compositor.action.view = view;
 	compositor.action.grab = *origin;
 	wlc_view_bring_to_front(view);
@@ -323,9 +323,9 @@ void view_request_geometry(wlc_handle view, const struct wlc_geometry* g)
 int
 main(int argc, char *argv[])
 {
-	logger_setup("/home/developer/tw-log");
+	setup_wlc_logger("/home/developer/tw-log");
 	debug_file = fopen("/tmp/tw-log", "w+");
-	wlc_log_set_handler(logger);
+	wlc_log_set_handler(wlc_logger);
 
 	//output callbacks
 	wlc_set_output_created_cb(output_created);//this get called everytime I switched between sessions

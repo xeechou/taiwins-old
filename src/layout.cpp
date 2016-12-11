@@ -2,7 +2,7 @@
 #include <types.h>
 #include "handlers.h"
 #include "wm.h"
-#include "utils.h"
+#include "debug.h"
 ////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////builtin static functions/////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -123,13 +123,22 @@ Layout::getViewLoc(const tw_handle view)
 	}
 	return -1;
 }
+//view behavior changes, now treat offset as an abs value,
+//in the future version, make offset to int value which specific the direction
 const tw_handle
-Layout::getViewOffset(const tw_handle view, int offset)
+Layout::getViewOffset(const tw_handle view, size_t offset)
 {
-	int ind = getViewLoc(view);
+	size_t ind = getViewLoc(view);
 	//fprintf(debug_file, "WE WANT TO GET OFFSET %d, nviews: %d, loc: %d \n", offset, nviews, ind);
 	//fflush(debug_file);
-	return (ind+offset >= 0 && ind+offset < nviews) ? views[ind+offset] : 0;
+	size_t right_offset = ind + offset;
+	int    left_offset = ind - offset;
+	if (right_offset < nviews)
+		return views[ind+offset];
+	else if (left_offset >= 0)
+		return views[left_offset];
+	else
+		return 0;
 }
 ///////////////////////////////////////////////////////////////////////////
 ////////////////////////////Layout Ends////////////////////////////////////
@@ -155,9 +164,9 @@ int MasterLayout::getViewLoc(const tw_handle view)
 }
 
 const tw_handle
-MasterLayout::getViewOffset(const tw_handle view, int offset)
+MasterLayout::getViewOffset(const tw_handle view, size_t offset)
 {
-	const tw_handle v = Layout::getViewOffset(view, -offset);
+	const tw_handle v = Layout::getViewOffset(view, offset);
 	return v;
 }
 
