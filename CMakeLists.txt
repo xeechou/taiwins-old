@@ -35,5 +35,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 add_subdirectory(libs)
 
 include_directories(include)
+add_subdirectory(protocols)
 add_subdirectory(src)
 add_subdirectory(clients)

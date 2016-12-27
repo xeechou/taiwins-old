@@ -1,5 +1,5 @@
 include_directories(
-	${PROTOCOLS_INCLUDE_DIRS}
+	${PROTOCOLS_INCLUDE_DIR}
 	${WLC_INCLUDE_DIRS}
 	${PCRE_INCLUDE_DIRS}
 	${JSONC_INCLUDE_DIRS}
@@ -21,6 +21,7 @@ add_executable(taiwins
   )
 
 target_link_libraries(taiwins
+  proto_libraries  
   ${WLC_LIBRARIES}
   ${XKBCOMMON_LIBRARIES}
   ${WAYLAND_SERVER_LIBRARIES}

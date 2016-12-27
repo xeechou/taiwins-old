@@ -1,15 +1,26 @@
 * Taiwins
+  wayland's coordinate system, x is width, y is height
 ** TODO-list
-*** TODO desktop shell protocol design and implementations [25%]
+*** TODO taiwins shell protocol design and implementations [100%]
     - [X] write dumb wlc-compositor ready callback
-    - [ ] load client program
-    - [ ] protocols
-      - [ ] implement dummy one function protocol
-    - [ ] coming up
+    - [X] load client program
+    - [X] protocols
+      - [X] implement dummy one function protocol
+    - 
 
-*** TODO desktop-bar protocol, design (Then how am I gonna start a bar myself?)
-    wlc has compositor ready callback, which you can use it for calling a
-    wayland client, we should first implement this, can adding one function at a time.
+*** TODO taiwins-shell protocol[0%]
+    - [ ] update-panel request
+      draw panel for different output, then I should have an array for the output
+    - [ ] update-background request
+      again the same, draw background for every output
+**** The surface protocol.
+     This protocol has quite a few request and a two events. I think you need to
+     call attach every time you if you want to switch the buffer, then you make
+     it as damaged, then you commit
+**** the subsurface protocol
+     I think they are for pop-ups
+**** What is wayland-subpixel? You need to read and 
+
 
 *** DONE fix segment fault bug for switch sessions.
     CLOSED: [2016-10-20 Thu 17:52]
@@ -82,6 +93,7 @@
      workspace. I can toggle visibility of all views.
    what we need:
    - The double-link data structure
+
 ** The data structure for layout
    seems to be a link list is the best for linear data structures, because we
    have a view delete method, this method brings a hole to the view array.

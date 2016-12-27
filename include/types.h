@@ -5,38 +5,74 @@
 #include <wlc/wlc.h>
 #include <wayland-util.h>
 typedef wlc_handle tw_handle;
-typedef wlc_size  tw_size;
-typedef wlc_point tw_point;
-typedef wlc_geometry tw_geometry;
+typedef struct wlc_size  tw_size;
+typedef struct wlc_point tw_point;
+typedef struct wlc_geometry tw_geometry;
 
+/*
+struct iterator{
+	void * (*next)(void);
+	void * (*prev)(void);
+	void * (*begin)(void);
+	void * (*end) (void);
+	void * data; //I am not sure this would be a good idea.
+};
+*/
 
 /**
- *
- * @brief this is a double array data type, that should grow as we expand.
+ * @brief tw_array: the only difference for darray is the head is not 0.
  */
-typedef struct tw_darray {
+typedef struct tw_array {
 	void *data;
 	size_t esize; //element size
 	
 	size_t alloc; //allocated size
 	size_t header;//the first element
-
 	size_t size;  //the actual size
-
-	//we want to avoid using memcpy by introducing this function in.
+	
+	//these two functions are used for generic programming
+	//copy_elem follows dst, src style
 	void (*copy_elem) (void*, void *);
-} tw_darray;
+	int (*compare) (void *, void *);
+} tw_array;
 
+bool tw_array_init(tw_array *arr, size_t esize,
+		    void (*copy_elem) (void*, void *),
+		    int (*compare)(void *, void *));
 
-//implement a array based will
-/*
+const void *tw_array_at(tw_array* arr, size_t i);
+void *tw_array_at_unsafe(tw_array *arr, size_t i);
+void tw_array_push_back(tw_array*, void*);
+bool tw_array_swap(tw_array*, size_t locl, size_t locr);
+
+#define tw_array_for_each(arr, ptr)		\
+	for (ptr = (arr)->data;						\
+	     (const char *)ptr < ( (const char *)(arr)->data + (arr)->esize * (arr)->size); \
+	     (ptr) = (arr)->esize + (char *)(ptr))
+
+//maybe we should give it a for_each???
+
+/**
+ *
+ * @brief this is a double-end array data type, that should grow as we expand.
+ */
+typedef struct tw_array tw_darray;
+
 bool tw_darray_init(tw_darray *arr, size_t esize,
-		    void (*copy_elem) (void*, void *));
-void *tw_darray_at(tw_darray* arr, size_t i);
-bool tw_darray_push_back(tw_darray*, void*);
-bool tw_darray_push_front(tw_darray*, void*);
+		    void (*copy_elem) (void*, void *),
+		    int (*compare)(void *, void *));
+const void *tw_darray_at(tw_darray* arr, size_t i);
+void *tw_darray_at_unsafe(tw_darray *arr, size_t i);
+void tw_darray_push_back(tw_darray*, void*);
+void tw_darray_push_front(tw_darray*, void*);
 bool tw_darray_swap(tw_darray*, size_t locl, size_t locr);
-*/
+
+
+//maybe one day I can simplify this, rightnow it looks too complex
+#define tw_darray_for_each(arr, index, ptr)			       \
+	for (index = 0, ptr = (char *)(arr)->data + (arr)->esize * (arr)->header; \
+	     index < (arr)->size;					\
+	     (ptr) = (char *)(arr)->data + (( ((arr)->header+ (++index)) % (arr)->alloc ) * (arr)->esize) )
 
 /**
  * @brief double-link list

@@ -11,6 +11,7 @@
 #include <utils.h>
 #include "debug.h"
 #include "handlers.h"
+#include <wayland-server.h>
 
 //let just put it here
 FILE *debug_file = NULL;
@@ -320,6 +321,8 @@ void view_request_geometry(wlc_handle view, const struct wlc_geometry* g)
 	(void)view, (void)g;
 }
 
+
+
 int
 main(int argc, char *argv[])
 {
@@ -330,6 +333,7 @@ main(int argc, char *argv[])
 	//output callbacks
 	wlc_set_output_created_cb(output_created);//this get called everytime I switched between sessions
 	wlc_set_output_destroyed_cb(output_destroyed);
+	wlc_set_compositor_ready_cb(compositor_ready_hook);
 	//output callbacks
 	wlc_set_view_request_geometry_cb(view_request_geometry);
 	wlc_set_view_request_move_cb(view_request_move);
@@ -346,6 +350,7 @@ main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	//we need to have a background global...
 	//register_background();
+//	wl_global_create(wlc_get_wl_display(), &taiwins_shell_interface, 1, NULL, bind_dummy);
 	if (signal(SIGCHLD, wait_children) == SIG_ERR)
 	    return -1;
 	

@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+#include <stdio.h>
+#include <stdarg.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdlib.h>
@@ -23,9 +25,24 @@ int utils_create_temp_file(char *fname);
 void utils_time(char *time_string);
 
 /** setup logger function, call it before logger */	
-int logger_setup(const char *fname);
-/** the logger function */	
-void logger(enum wlc_log_type type, const char *str);
+int setup_wlc_logger(const char *fname);
+/** the wlc_log function */
+void wlc_logger(enum wlc_log_type, const char *str);
+extern FILE *logger_file;
+/**
+ * @brief logging ability,
+ */
+static inline void
+logger(enum wlc_log_type type, const char *str, ...)
+{
+	va_list args;
+
+//	fprintf(logger_file, "%s: ", logger_type(type));
+	va_start(args, str);
+	vfprintf(logger_file, str, args);
+	fprintf(logger_file, "\n");
+	va_end(args);
+}
 	
 #ifdef __cplusplus
 }

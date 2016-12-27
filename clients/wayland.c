@@ -19,7 +19,8 @@ register_globals(void *data, struct wl_registry *registry,
 		reg->compositor = (struct wl_compositor *)wl_registry_bind(registry, id, &wl_compositor_interface, version);
 	else if (strcmp(interface, wl_shm_interface.name) == 0)
 		reg->shm = (struct wl_shm *)wl_registry_bind(registry, id, &wl_shm_interface, version);
-	
+	else if (strcmp(interface, wl_output_interface.name) == 0)
+		return; //you need to register every outputs
 
 	//register client specific code
 	if (reg->registre)
@@ -30,7 +31,9 @@ register_globals(void *data, struct wl_registry *registry,
 static void
 registry_globals_remove(void *data, struct wl_registry *registry, uint32_t name)
 {
-	//nothing here?
+	struct registry *reg = (struct registry *)data;
+	if (reg->deregstre)
+		reg->deregstre(registry, name);
 }
 
 static const struct wl_registry_listener registry_listener = {
@@ -45,7 +48,8 @@ static const struct wl_registry_listener registry_listener = {
  */
 struct registry *
 client_init(const char *display_name,
-	void (*registre)(struct wl_registry *, uint32_t, const char *, uint32_t))
+	    void (*registre)(struct wl_registry *, uint32_t, const char *, uint32_t),
+	    void (*deregistre)(struct wl_registry *, uint32_t))
 {
 	struct registry *reg = (struct registry *)malloc(sizeof(*reg));
 	
@@ -54,6 +58,7 @@ client_init(const char *display_name,
 		goto error;
 	struct wl_registry *wayland_registry = wl_display_get_registry(reg->display);
 	reg->registre = registre;
+	reg->deregstre = deregistre;
 
 	wl_registry_add_listener(wayland_registry, &registry_listener, reg);
 
@@ -66,10 +71,12 @@ error:
 	return NULL;
 }
 
-void client_finalize(struct registry const *reg)
+void client_finalize(struct registry *reg)
 {
 	wl_shm_destroy(reg->shm);
 	wl_compositor_destroy(reg->compositor);
 	wl_display_disconnect(reg->display);
+	free(reg);
 	//the last memory management is users job
 }
+
