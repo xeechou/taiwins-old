@@ -13,6 +13,7 @@ add_definitions(
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" "${PROJECT_SOURCE_DIR}/CMake")
+include(GNUInstallDirs)
 
 find_package(JsonC REQUIRED)
 find_package(PCRE REQUIRED)
@@ -23,10 +24,17 @@ find_package(Cairo)
 find_package(Pango)
 find_package(GdkPixbuf)
 find_package(PAM)
-
 find_package(LibInput REQUIRED)
 
 
-include_directories(include)
+#runtime output dir, but it ruined everything
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin) 
 
+add_subdirectory(libs)
+
+include_directories(include)
+add_subdirectory(protocols)
 add_subdirectory(src)
+add_subdirectory(clients)

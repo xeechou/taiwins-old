@@ -8,8 +8,10 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <signal.h>
-#include "utils.h"
+#include <utils.h>
+#include "debug.h"
 #include "handlers.h"
+#include <wayland-server.h>
 
 //let just put it here
 FILE *debug_file = NULL;
@@ -28,7 +30,6 @@ start_interactive_action(wlc_handle view, const struct wlc_point *origin)
 {
 	if (compositor.action.view)
 		return false;
-
 	compositor.action.view = view;
 	compositor.action.grab = *origin;
 	wlc_view_bring_to_front(view);
@@ -320,16 +321,19 @@ void view_request_geometry(wlc_handle view, const struct wlc_geometry* g)
 	(void)view, (void)g;
 }
 
+
+
 int
 main(int argc, char *argv[])
 {
-	logger_setup("/home/developer/tw-log");
+	setup_wlc_logger("/home/developer/tw-log");
 	debug_file = fopen("/tmp/tw-log", "w+");
-	wlc_log_set_handler(logger);
+	wlc_log_set_handler(wlc_logger);
 
 	//output callbacks
-	wlc_set_output_created_cb(output_created);
+	wlc_set_output_created_cb(output_created);//this get called everytime I switched between sessions
 	wlc_set_output_destroyed_cb(output_destroyed);
+	wlc_set_compositor_ready_cb(compositor_ready_hook);
 	//output callbacks
 	wlc_set_view_request_geometry_cb(view_request_geometry);
 	wlc_set_view_request_move_cb(view_request_move);
@@ -346,6 +350,7 @@ main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	//we need to have a background global...
 	//register_background();
+//	wl_global_create(wlc_get_wl_display(), &taiwins_shell_interface, 1, NULL, bind_dummy);
 	if (signal(SIGCHLD, wait_children) == SIG_ERR)
 	    return -1;
 	

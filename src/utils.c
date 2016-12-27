@@ -1,5 +1,6 @@
 #include "utils.h"
 #include <string.h>
+#include <stdarg.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -90,13 +91,13 @@ void utils_time(char *time_string)
 
 /*********** logging functions **************/
 
-static FILE *logger_file;
+FILE *logger_file;
 
 /**
  * @brief set up logger function, the logger_file is always setted
  */
 int
-logger_setup(const char *fname)
+setup_wlc_logger(const char *fname)
 {
 	int err = 0;
 	if (strcmp(fname, "-") == 0 || strcmp(fname, "stderr") == 0)
@@ -110,7 +111,7 @@ logger_setup(const char *fname)
 }
 
 static inline const char*
-logger_type(enum wlc_log_type type)
+wlc_logger_type(enum wlc_log_type type)
 {
 	switch (type) {
 	case WLC_LOG_INFO:
@@ -129,17 +130,10 @@ logger_type(enum wlc_log_type type)
 	return "NOTYPE";
 }
 
-/**
- * @brief logging ability
- *
- * we need to add 
- */
-void
-logger(enum wlc_log_type type, const char *str)
+void wlc_logger(enum wlc_log_type type, const char *format)
 {
-	fprintf(logger_file, "%s: %s\n", logger_type(type), str);
+	fprintf(logger_file, "%s: %s\n", wlc_logger_type(type), format);
 }
-
 /*
 int main(void)
 {

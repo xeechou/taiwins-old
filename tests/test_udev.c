@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 struct tw_drm_context {
 	struct udev *udev_context;
@@ -78,4 +79,5 @@ int main()
 		fprintf(stderr, "valid gpu is %s\n", context.gpu_filename);
 
 	udev_unref(context.udev_context);
+	free(context.gpu_filename);
 }

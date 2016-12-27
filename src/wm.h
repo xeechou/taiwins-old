@@ -19,8 +19,6 @@ struct tw_monitor;
 /////////////////////////View specific structures/////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
-
-
 enum tw_border_t {
 	TW_BORDER_NONE, /* no border, implementation can be intergraded to TW_BORDER_PIX */
 	TW_BORDER_PIX,  /* a few pixels as border */
@@ -28,7 +26,6 @@ enum tw_border_t {
 };
 
 struct tw_border {
-	tw_border_t type; 
 	size_t stitle; /* size of title, not used in pixel type */
 	size_t sborder; /* the size of top, not used in regular type */
 
@@ -63,12 +60,14 @@ typedef union view_link {
 struct tw_view_data {
 	// in relayout method, we always assume the geometry is the content
 	// geometry, that is, borders are not included
-	
+	tw_border_t type; 
 	const tw_border *border; //borders should vary from views to views
 	size_t scale; // windows can have their own scales, for those which
 		      // doesn't support HIDPI, default 1. It varis from monitors to monitors
 	tw_size actual; // when the view need to be scaled, we stores the actual size for it
 	view_link link;
+	
+
 };
 
 /**
@@ -91,6 +90,9 @@ struct tw_monitor {
 
 	//init border for the monitor
 	struct tw_border border;
+
+	//the 2D information for this monitor
+	tw_point location;
 };
 
 
@@ -118,7 +120,9 @@ protected:
 	tw_handle monitor;//the monitor it belongs to
 	//this should be a circle array, since I can but
 	size_t nviews;	//all the views for that layout of the monitor
-	tw_handle *views; //the array type of 
+	
+	//the array type of views, this array should always be available
+	tw_handle *views; 
 	tw_list *header; //master-layout is implemented with link list
 
 	int offset_next;
@@ -130,9 +134,12 @@ public:
 	virtual void relayout (tw_handle output) = 0;
 	virtual bool createView (tw_handle view) = 0;
 	virtual void destroyView(tw_handle view) = 0;
-	virtual int getViewLoc(const tw_handle view);///getViewLoc return the index of view,
-				       ///return -1 if not found,
-	virtual const tw_handle getViewOffset(const tw_handle, int);
+	///return the location of the view, here it use brute force
+	virtual int getViewLoc(const tw_handle view);
+
+	//return a view by the offset, search in both directions since offset is
+	//an abs value
+	virtual const tw_handle getViewOffset(const tw_handle view, size_t offset);
 	///the subclass need to override if they operate on different data type.
 };
 
@@ -179,7 +186,7 @@ public:
 	void destroyView(tw_handle view);
 
 	int getViewLoc(const tw_handle view);
-	const tw_handle getViewOffset(const tw_handle, int);
+	const tw_handle getViewOffset(const tw_handle, size_t);
 
 };
 
