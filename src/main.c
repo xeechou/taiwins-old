@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <wlc/wlc.h>
 #include <wlc/geometry.h>
@@ -11,6 +12,7 @@
 #include <utils.h>
 #include "debug.h"
 #include "handlers.h"
+#include "protocols.h"
 #include <wayland-server.h>
 
 //let just put it here
@@ -348,12 +350,13 @@ main(int argc, char *argv[])
 	//fprintf(stdout, "this line should be printed though\n");
 	if (!wlc_init())
 		return EXIT_FAILURE;
+	tw_globals_registre();
 	//we need to have a background global...
 	//register_background();
 //	wl_global_create(wlc_get_wl_display(), &taiwins_shell_interface, 1, NULL, bind_dummy);
 	if (signal(SIGCHLD, wait_children) == SIG_ERR)
 	    return -1;
-	
+
 	wlc_run();
 	return EXIT_SUCCESS;
 }

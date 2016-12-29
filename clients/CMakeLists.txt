@@ -1,4 +1,5 @@
 include_directories(
+  ${common_INCLUDE_DIRS}
   ${PROTOCOLS_INCLUDE_DIR}
   ${WLC_INCLUDE_DIRS}
   ${LIBINPUT_INCLUDE_DIRS}
@@ -19,6 +20,7 @@ target_link_libraries(desktop_shell
   clients_lib
   proto_libraries
   ${WAYLAND_CLIENT_LIBRARIES}
+  ${common_LIBRARY}
   )
 
 install(TARGETS clients_lib DESTINATION "${CMAKE_INSTALL_LIBDIR}")
