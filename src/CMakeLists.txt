@@ -17,7 +17,10 @@ add_executable(taiwins
   layout.cpp
   wm.cpp
   handlers.cpp
-  #types.c
+  protocols.c
+  ###protocols
+  taiwins_shell.c
+  dummy_shell.c
   )
 
 target_link_libraries(taiwins

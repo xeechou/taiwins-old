@@ -1,8 +1,11 @@
 #include <string.h>
 #include <stdlib.h>
+
+//this is a hack
+#include "wayland.h"
 #include <wayland-client.h>
 
-#include "wayland.h"
+
 
 //There are quite a few things you need to implement here it looks like for one
 //type of client, you need to register specific globals for it, I think I can

@@ -23,7 +23,8 @@ ExternalProject_Add(common
 ExternalProject_Get_Property(common
   install_dir)
 #get the include dirs 
-set(common_INCLUDE_DIRS "${install_dir}/${CMAKE_INSTALL_INCLUDEDIR}")
+set(common_INCLUDE_DIRS "${install_dir}/${CMAKE_INSTALL_INCLUDEDIR}"
+  CACHE PATH "common_include_dir")
 #setup the libraries, or maybe you shouldn't use find library???, change it later
 add_library(_common STATIC IMPORTED)
 set_property(TARGET _common PROPERTY IMPORTED_LOCATION

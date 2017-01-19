@@ -13,7 +13,6 @@
 //template name, all the shm file name should look like this
 static const char template_fname[] = "/TW_SHM_XXXXXX";
 
-
 //you need file name and then the size, and many things
 int create_buffer(int size)
 {

@@ -1,6 +1,11 @@
 #ifndef TW_WAYLAND_H
 #define TW_WAYLAND_H
 
+//this is a hack, only in this way that I can use a macro
+//#ifndef WL_SHM_FORMAT_ENUM
+//#define WL_SHM_FORMAT_ENUM
+//#endif
+
 #include <wayland-client.h>
 
 struct registry {
