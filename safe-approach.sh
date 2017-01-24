@@ -1,4 +1,4 @@
 #!/bin/sh
 
-sleep 10
+sleep 15
 kill $(pidof taiwins)
