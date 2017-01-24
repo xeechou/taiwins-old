@@ -1,0 +1,25 @@
+<protocol name="dummy">
+  <interface name="subdummy" version="1">
+    <description summary="dummy object created by dummy_iface"/>
+    <request name="subdummy_print">
+      <arg name="output" type="object" interface="wl_output"/>
+      <arg name="string" type="string"/>
+    </request>
+  </interface>
+  
+  <interface name="dummy_iface" version="1">
+    <description summary="dummy protocol for testing"/>
+
+    <request name="dummy_print">
+      <arg name="output" type="object" interface="wl_output"/>
+      <arg name="string" type="string"/>
+    </request>
+
+    <request name="create_subdummy">
+      <arg name="id" type="new_id" interface="subdummy" summary="create a subdummy"/>
+    </request>
+
+    
+  </interface>
+
+</protocol>
