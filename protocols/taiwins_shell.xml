@@ -1,27 +1,55 @@
 <protocol name="taiwins">
+
+  <interface name="nonapp_surface" version="1">
+    <description summary="non application surface">
+      The surface that get drawn at pre-rendering(at button layer) and
+      post-rendering(at top layer) stages, they can optionally be double
+      buffered. If they need to change. 
+    </description>
+
+    <request name="registre">
+      <description summary="register the non-application surface">
+	non-application surfaces have to have a position, call this request
+	before attach/damge/commit routine, otherwise the updating is undefined,
+	for server, it should register a surface to rendering list
+      </description>
+      <arg name="output" type="object" interface="wl_output"/>
+      <arg name="surface" type="object" interface="wl_surface"/>
+      <arg name="buffer"  type="object" interface="wl_buffer"/>
+      <arg name="x" type="int"/>
+      <arg name="y" type="int"/>
+      <arg name="width" type="int"/>
+      <arg name="height" type="int"/>
+      <arg name="type" type="uint" enum="nonapp_surface.stage"
+	   summary="which layer to draw"/>	
+    </request>
+
+    <enum name="stage">
+      <entry name="top_layer" value="0"/>
+      <entry name="button_layer" value="1"/>
+    </enum>
+  </interface>
+
+  
   <interface name="taiwins_shell" version="1">
     <description summary="create desktop widgets and helpers">
       This protocol does simple things, eventually, this api should be able to
       implement xdg_shell.
     </description>
-
+    
     <request name="create_nonapp_surface">
+      <description summary="create a non-application surface">
+	We could create a panel, wallpaper in this way, maybe I should call them
+	static surface? The resource it created is the unique identity to the server
+      </description>
       <arg name="output" type="object" interface="wl_output"/>
-      <arg name="id" type="new_id" interface="nonapp_surface"/>
+      <arg name="id" type="new_id" interface="nonapp_surface" summary="create a
+	non-app surface"/>
     </request>
 
     <!-- there is no way you can avoid panel, you need to call change workspace
 	 something -->
-    <request name="update_panel">
-      <description summary="tell server to update panel accordingly">
-	Desktop shell finishing drawing the panel and it is the time to tell the
-	server to update on that
-      </description>
-      <!--we maybe able to implement this with the nonapp_surface-->
-      <arg name="output" type="object" interface="wl_output"/>
-      <arg name="surface" type="object" interface="wl_surface"/>
-    </request>
-
+<!-- 
   <enum name="cursor">
 
     <entry name="none" value="0"/>
@@ -42,39 +70,8 @@
     <entry name="resize_bottom_right" value="10"/>
 
     <entry name="busy" value="11"/>
-  </enum>    
+  </enum>
+-->
   </interface>
-
-
-  <interface name="nonapp_surface" version="1">
-    <description summary="non application surface">
-      The surface that get drawn at pre-rendering(at button layer) and
-      post-rendering(at top layer) stages, they can optionally be double
-      buffered. If they need to change. 
-    </description>
-    <!-- you cannot return a nonapp_surface from a nonapp_surface -->
-    <request name="registre">
-      <description summary="register the non-application surface">
-	non-application surfaces have to have a position, call this request
-	before attach/damge/commit routine, otherwise the updating is undefined
-      </description>
-      <arg name="output" type="object" interface="wl_output"/>
-      <arg name="surface" type="object" interface="wl_surface"/>
-      <arg name="x" type="int"/>
-      <arg name="y" type="int"/>
-      <arg name="width" type="int"/>
-      <arg name="height" type="int"/>
-      <arg name="type" type="uint" enum="nonapp_surface.stage"
-	   summary="which layer to draw"/>	
-    </request>
-
-    <enum name="stage">
-      <entry name="top_layer" value="0"/>
-      <entry name="button_layer" value="1"/>
-    </enum>
-    
-  </interface>
-  
-
 
 </protocol>

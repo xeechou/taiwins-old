@@ -1,8 +1,8 @@
-#include <stdlib.h>
 #include <stdio.h>
+#include <stddef.h>
+#include <stdlib.h>
 #include <stdbool.h>
 #include <unistd.h>
-#include <errno.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <wayland-client.h>
@@ -25,41 +25,39 @@ struct wl_surface *Surface;
 FILE *debug_info;
 
 static void
-output_init(struct output_elements *output, struct wl_output *wl_output, int id, struct registry *reg)
+output_init(struct output_elements *output, int id, struct registry *reg)
 {
 	output->curr_param = 0;
 	output->params[0].fd = -1;
 	output->params[1].fd = -1;
 	output->id = id;
-	output->wl_output = wl_output;
 	output->registry = reg;
 	output->initialized = false;
 	//output
 }
-//FIXME: fix the updating
+
 int output_update_static_surface(struct static_surface *sur, struct output_elements *elem,
 				 struct geometry *geo, enum nonapp_surface_stage stage, int offset)
 {
-	printf("I shouldn't be here\n");
 	struct taiwins_shell *shell = desktop_get_taiwins_shell();
 	if (!shell)
- 		return -1;
-	struct twshell_geometry *curr_geometry = &elem->params[elem->curr_param];
+		return -1;
 	//keep the old data record
-//	struct wl_buffer *old_buffer = sur->wl_buffer;
-//	void *old_map = sur->data;
-//	int old_len   = tw_get_geometry_size(&(sur->geometry));
+	struct twshell_geometry *curr_geometry = &elem->params[elem->curr_param];
+
+	struct wl_buffer *old_buffer = sur->wl_buffer;
+	void *old_map = sur->data;
+	int old_len   = tw_get_geometry_size(&(sur->geometry));
 	
-	//use the new geometry for static surface
+	//use the new one
 	sur->geometry = *geo;
-	sur->type = stage;
+	nonapp_surface_registre(sur->na_surface, elem->output, sur->wl_surface,
+				sur->geometry.x, sur->geometry.y, sur->geometry.width, sur->geometry.height, stage);
 //	sur->wl_buffer = wl_shm_pool_create_buffer(curr_geometry->pool, offset,
 //						   sur->geometry.width, sur->geometry.height, sur->geometry.stride,
 //						   WL_SHM_FORMAT_ARGB8888);
 //	sur->data = mmap(NULL, tw_get_geometry_size(&(sur->geometry)),
 //			 PROT_READ | PROT_WRITE, MAP_SHARED, curr_geometry->fd, offset);
-	nonapp_surface_registre(sur->na_surface, elem->wl_output, sur->wl_surface, sur->wl_buffer,
-				sur->geometry.x, sur->geometry.y, sur->geometry.width, sur->geometry.height, stage);
 
 	//now you can safely ummap the old buffer
 //	wl_buffer_destroy(old_buffer);
@@ -67,51 +65,33 @@ int output_update_static_surface(struct static_surface *sur, struct output_eleme
 	return 0;
 }
 
-/**
- * @brief create the static surface and setup the geometry parameters
- *
- * a static surface has just stage(when to draw) and geometry parameters. here we just announce it
- *
- */
-int output_create_static_surface(struct static_surface *sur, struct output_elements *elem,
-				 struct geometry *geo, enum nonapp_surface_stage stage, int offset)
+//this is a horse keeping code, so you don't need to write it like every time
+int output_create_static_surface(struct static_surface *sur , struct output_elements *elem,
+				  struct geometry *geo, enum nonapp_surface_stage stage, int offset)
 {
 	struct taiwins_shell *shell = desktop_get_taiwins_shell();
 	if (!shell)
 		return -1;
+	
 	sur->geometry = *geo;
 	sur->type = stage;
 	sur->wl_surface = wl_compositor_create_surface(elem->registry->compositor);
 	struct twshell_geometry *curr_geometry = &elem->params[elem->curr_param];
-	sur->na_surface = taiwins_shell_create_nonapp_surface(desktop_get_taiwins_shell(), elem->wl_output);
 
-	sur->wl_buffer = wl_shm_pool_create_buffer(curr_geometry->pool, offset,
-						   sur->geometry.width, sur->geometry.height, sur->geometry.stride,
-						   WL_SHM_FORMAT_ARGB8888);
-	
-	//FIXME:I have a map failed here, it may because the size problem, it must be the size problem
-//	printf("Okay, now I have no idea, The size is %d, fd is %d, offset is %d\n", tw_get_geometry_size(&(sur->geometry)),
-//	       curr_geometry->fd, offset);
-	//mmap's offset has to align to the page size/4096
-	fflush(stdout);
-	sur->data = mmap(NULL, tw_get_geometry_size(&(sur->geometry)),
-			 PROT_READ | PROT_WRITE, MAP_SHARED,
-			 curr_geometry->fd, offset);
-	printf("%d size for mmap, then I got the mmap result %p\n", tw_get_geometry_size((&sur->geometry)), sur->data);
-	fflush(stdout);
-	if (errno)
-		perror("MMAP error occured");
-	//here 
-//	if (!sur->data)
-//	printf("WTF %d\n", tw_get_geometry_size((&sur->geometry)));
-//	strcpy((char *)sur->data, "this is only a test");
-	//I should register with wl_shm_buffer, or, because we have a new buffer, we can somehow use it as idenitfier
-	nonapp_surface_registre(sur->na_surface, elem->wl_output, sur->wl_surface, sur->wl_buffer,
+	//I still got a core dump, invalid arguments, so the bug must be at server side
+	sur->na_surface = taiwins_shell_create_nonapp_surface(desktop_get_taiwins_shell(), elem->output);
+//	fprintf(debug_info, "this call will fail, but we do have a nonapp object %p, with output %p\n", sur->na_surface, elem->output);
+//	fflush(debug_info);
+	nonapp_surface_registre(sur->na_surface, elem->output, sur->wl_surface,
 				sur->geometry.x, sur->geometry.y,
 				sur->geometry.width, sur->geometry.height,
 				stage);
-//	printf("I resigtered a static surface at (%d, %d), width and height are (%d, %d)\n",
-//	       sur->geometry.x, sur->geometry.y, geo->width, geo->height);
+
+//	sur->wl_buffer = wl_shm_pool_create_buffer(curr_geometry->pool, offset,
+//						   sur->geometry.width, sur->geometry.height, sur->geometry.stride,
+//						   WL_SHM_FORMAT_ARGB8888);
+//	sur->data = mmap(NULL, tw_get_geometry_size(&(sur->geometry)),
+//			 PROT_READ | PROT_WRITE, MAP_SHARED, curr_geometry->fd, offset);
 	return 0;
 }
 
@@ -151,36 +131,30 @@ output_mode(void *data, struct wl_output *wl_output,
 	int future_param = 1 - output->curr_param;
 	output->params[future_param].px_width = width;
 	output->params[future_param].px_height = height;
-	//so the size is correct
-	//printf("current screen resolution is: (%d, %d) and %d px\n", width, height, width * height);
 }
 
 
 static void
 output_scale(void *data, struct wl_output *wl_output, int32_t factor)
 {
-	struct output_elements *output = wl_output_get_user_data(wl_output);
+	struct output_elements *output = (struct output_elements *)data;
 	int future_param = 1 - output->curr_param;
 	output->params[future_param].scale = factor;
 }
 
-/**
- * @brief output done event
- *
- * we received a whole set of output parameters, we need to create panel and
- * background surface for it
- */
+
 static void
 output_done(void *data, struct wl_output *wl_output)
 {
-	printf("Output done event\n");
-	//output output event
+	//output event is done, but we actually need taiwins shell protocol to
+	//proceed, so we can run this code
 	struct taiwins_shell *taiwins_shell = desktop_get_taiwins_shell();
 	if (!taiwins_shell)
 		return;
 	struct output_elements *output = (struct output_elements *)data;
-	//swith the output params
+	//now we swith the parameters
 	output->curr_param = 1 - output->curr_param;
+
 	//get new geometry
 	struct twshell_geometry *old_geometry = &output->params[1 - output->curr_param];
 	struct twshell_geometry *shell_geometry  = &output->params[output->curr_param];
@@ -188,35 +162,29 @@ output_done(void *data, struct wl_output *wl_output)
 	struct geometry geo;
 	size_t buffer_size;
 
-	tw_set_geometry(&geo, 0, 0, shell_geometry->px_width, shell_geometry->px_height);
-	//the easiest way is to return a size align to 
+	tw_set_geometry(&geo, 0, 0, shell_geometry->px_width, shell_geometry->px_height);	
 	buffer_size = 2 * tw_get_geometry_size(&geo);
-	fflush(stdout);
 	//for panel
 	tw_set_geometry(&geo, 0, shell_geometry->px_height - panel_height,
 			shell_geometry->px_width, panel_height);
 	buffer_size += tw_get_geometry_size(&geo);
 
-	//this is the awkward part, you expose the mmap interface to both sides
 	shell_geometry->fd = create_buffer(buffer_size);
 	shell_geometry->pool = wl_shm_create_pool(output->registry->shm, shell_geometry->fd, buffer_size);
 
 	if (old_geometry->fd < 0) {
 		//panel
 		output_create_static_surface(&output->panel, output, &geo, NONAPP_SURFACE_STAGE_TOP_LAYER, 0);
-//		printf("The panel size should be %d\n", tw_get_geometry_size(&(output->panel.geometry)));
-		//wallpaper
 		tw_set_geometry(&geo, 0, 0, shell_geometry->px_width, shell_geometry->px_height);
-//		printf("The size of the wallpaper is %d\n", tw_get_geometry_size(&geo)); the size is correct as well
+		//wallpaper
 		output_create_static_surface(&output->wallpaper, output, &geo, NONAPP_SURFACE_STAGE_BUTTON_LAYER,
 					     tw_get_geometry_size(&(output->panel.geometry)));
-//		printf("The panel size should be %d\n", tw_get_geometry_size(&(output->panel.geometry)));
 	}
 	else {
 		//panel
 		output_update_static_surface(&output->panel, output, &geo, NONAPP_SURFACE_STAGE_TOP_LAYER, 0);
-		//wallpaper
 		tw_set_geometry(&geo, 0, 0, shell_geometry->px_width, shell_geometry->px_height);
+		//wallpaper
 		output_update_static_surface(&output->wallpaper, output, &geo, NONAPP_SURFACE_STAGE_BUTTON_LAYER,
 					     tw_get_geometry_size(&(output->panel.geometry)));
 		wl_shm_pool_destroy(old_geometry->pool);
@@ -241,40 +209,45 @@ static struct wl_output_listener output_listener = {
 
 
 
-//////enregistre, that's french, registre is not!!!
+//////registre/unregistre
 static void
 registre_globals(struct wl_registry *registry,
 		      uint32_t id, const char *interface, uint32_t version)
 {
 	printf("register global %s\n", interface);
+	
 	if (strcmp(interface, taiwins_shell_interface.name) == 0) {
 		 desktop_set_taiwins_shell(
 			 (struct taiwins_shell *)wl_registry_bind(registry, id,
 								  &taiwins_shell_interface, version));
+		 //this will be called if output event received after taiwins event
 		 struct output_elements **outputs;
 		 int n_output = desktop_get_outputs(&outputs);
 		 for (int i = 0; i < n_output; i++)
-			 output_done(outputs[i], outputs[i]->wl_output);
+			 output_done(outputs[i], outputs[i]->output);
 		 free(outputs);
 	}
 	else if (strcmp(interface, wl_output_interface.name) == 0) {
 		struct wl_output *wl_output = wl_registry_bind(registry, id, &wl_output_interface, version);
 		struct output_elements *output = (struct output_elements *)malloc(sizeof(*output));
-		output_init(output, wl_output, id, (struct registry *)wl_registry_get_user_data(registry));
+		output_init(output, id, (struct registry *)wl_registry_get_user_data(registry));
 		desktop_add_output(output);
 		//add listener also set user_data
 		wl_output_add_listener(wl_output, &output_listener, output);
 		//garbage collected in the unregistre call
 	} 
+	else if (strcmp(interface, wl_surface_interface.name) == 0)
+		Surface = (struct wl_surface *)wl_registry_bind(registry, id, &wl_surface_interface, version);
 }
 
 static void cleanup_output(struct output_elements *elem)
 {
+
 	if (elem->initialized) {
-		wl_output_release(elem->wl_output);
-//		munmap(elem->panel.data, tw_get_geometry_size(&elem->panel.geometry));
-//		munmap(elem->wallpaper.data, tw_get_geometry_size(&elem->wallpaper.geometry));
-//		close(elem->params[elem->curr_param].fd);
+		wl_output_release(elem->output);
+		munmap(elem->panel.data, tw_get_geometry_size(&elem->panel.geometry));
+		munmap(elem->wallpaper.data, tw_get_geometry_size(&elem->wallpaper.geometry));
+		close(elem->params[elem->curr_param].fd);
 	}
 	elem->initialized = false;
 }
@@ -293,7 +266,7 @@ desktop_get_outputs(struct output_elements ***data)
 	struct output_elements **outputs = *data;
 	if (!n_outputs)
 		return 0;
-
+	
 	struct output_elements *output;
 	tw_list_for_each(output, Desktop_shell.outputs, list) {
 		*outputs++ = output;
@@ -335,6 +308,7 @@ int main(int argc, char **argv)
 
 	//you need to fix this, the cpu usage is too high
 	while (wl_display_dispatch(Registry->display) != -1);
+//		taiwins_shell_dummpy_call(Taiwins_shell, Output, Surface);
 
 	cleanup_taiwins_shell();
 	client_finalize(Registry);

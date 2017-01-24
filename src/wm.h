@@ -122,7 +122,8 @@ protected:
 	size_t nviews;	//all the views for that layout of the monitor
 	
 	//the array type of views, this array should always be available
-	tw_handle *views; 
+	tw_handle *views;
+	//I should make it to tw_list header
 	tw_list *header; //master-layout is implemented with link list
 
 	int offset_next;

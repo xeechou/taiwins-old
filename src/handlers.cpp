@@ -14,10 +14,10 @@ compositor_ready_hook(void)
 {
 	const char *desktop_client = "/home/developer/Projects/taiwins/build/bin/desktop_shell";
 	//for now, we just need to start a very simple program
-	pid_t pid = fork();
-	if (pid == 0) {
-		if (execl(desktop_client, desktop_client, NULL) == -1)
-			debug_log("file to start the children\n");
-	} else 
-		return;
+//	pid_t pid = fork();
+//	if (pid == 0) {
+//		if (execl(desktop_client, desktop_client, NULL) == -1)
+//			debug_log("file to start the children\n");
+//	} else 
+//		return;
 }

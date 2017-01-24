@@ -1,57 +1,62 @@
-* Taiwins
-  wayland's coordinate system, x is width, y is height
-** TODO-list
-*** TODO taiwins shell protocol design and implementations [100%]
-    - [X] write dumb wlc-compositor ready callback
-    - [X] load client program
-    - [X] protocols
-      - [X] implement dummy one function protocol
-    - 
+* Problems to tackle down
+  - Currently clients will receive new montitor plugin event, you need to solve
+    it at server side, maybe by setting a active output number? Anyway, this
+    should be done one server side.
+  - wayland's coordinate system, x is width, y is height
+* TODO-list
+** TODO taiwins shell protocol design and implementations [100%]
+   - [X] write dumb wlc-compositor ready callback
+   - [X] load client program
+   - [X] protocols
+     - [X] implement dummy one function protocol
+     - [ ] time to make server side respond something
 
-*** TODO taiwins-shell protocol[0%]
-    - [ ] update-panel request
-      draw panel for different output, then I should have an array for the output
-    - [ ] update-background request
-      again the same, draw background for every output
-**** The surface protocol.
-     This protocol has quite a few request and a two events. I think you need to
-     call attach every time you if you want to switch the buffer, then you make
-     it as damaged, then you commit
-**** the subsurface protocol
-     I think they are for pop-ups
-**** What is wayland-subpixel? You need to read and 
+** TODO taiwins-shell protocol[66%]
+   - [X] get taiwins_shell protocol to work
+   - [X] mmap memory to server.
+   - [X] the shared memory size is correct
+   - [ ] create render list, to render stuff using pre_render/post_render hook
 
+*** The surface protocol.
+    This protocol has quite a few request and a two events. I think you need to
+    call attach every time you if you want to switch the buffer, then you make
+    it as damaged, then you commit
+*** the subsurface protocol
+    I think they are for pop-ups
+*** What is wayland-subpixel? You need to read and 
 
-*** DONE fix segment fault bug for switch sessions.
-    CLOSED: [2016-10-20 Thu 17:52]
-    It turned out that everytime you switch session and switch back, the
-    output_created_cb get invoked with the same output ID. So you need to check
-    the session actually.
-    I think I fixed it, I am not 100% sure though.
-*** DONE view_created callback(view constructor)
-    CLOSED: [2016-09-28 Wed 22:27]
-*** TODO adjust border function.
-*** TODO input functions
-*** TODO configure file format
+** DONE fix segment fault bug for switch sessions.
+   CLOSED: [2016-10-20 Thu 17:52]
+   It turned out that everytime you switch session and switch back, the
+   output_created_cb get invoked with the same output ID. So you need to check
+   the session actually.
+   I think I fixed it, I am not 100% sure though.
+** DONE view_created callback(view constructor)
+   CLOSED: [2016-09-28 Wed 22:27]
+** TODO adjust border function.
+** TODO input functions
+** TODO configure file format
 
-*** DONE background protocol test
-    CLOSED: [2016-04-17 Sun 14:59]
-*** DONE renew taiwins repo structure 
-** NOTE input handler
-*** TODO we want a feature, use keyboard to guide mouse
-*** TODO design context stack
-*** TODO design keyinput struct
-*** TODO override keyinput struct
-*** Note of input
-     wlc offers wrapper around libinput library, and the design is really
-     simple. The handlers are hooks(callback), if hooks returns TRUE, it prevent
-     compositor senting event to clients. 
-     1. keyboard
+** DONE background protocol test
+   CLOSED: [2016-04-17 Sun 14:59]
+** DONE renew taiwins repo structure 
+** TODO we really need a extension to support screen down-sampling to different monitors, 
+   imagemagic/graphicsmagic could be a good choice
+* NOTE input handler
+** TODO we want a feature, use keyboard to guide mouse
+** TODO design context stack
+** TODO design keyinput struct
+** TODO override keyinput struct
+** Note of input
+    wlc offers wrapper around libinput library, and the design is really
+    simple. The handlers are hooks(callback), if hooks returns TRUE, it prevent
+    compositor senting event to clients. 
+    1. keyboard
 	return true to prevent senting key to client, view can be null so no
-        view is focused.
+       view is focused.
 	
 	the key event struct: I should implement it into class, then override
-        operator=, then I don't need to worry about 64bit keycode.
+       operator=, then I don't need to worry about 64bit keycode.
 
 	View operations(view opened):
 	+ kill client:arg(view)
@@ -73,48 +78,48 @@
 	+ record keypress state(no arg, for dragging)(so we need to record keypress key release)
 	  
 
-        handled differently in different mode(locked? resized?), do we have
-        modes?
+       handled differently in different mode(locked? resized?), do we have
+       modes?
 	
 	then, we need to encode key to something, use string? No!!! uint64_t,
-        then lookup?
+       then lookup?
 	
 
 	
-   + pointer(mouse)
-   + touch
-     
-** WM implementation
-   what we have:
-   - wlc_handler: output, view, almost everything is a handler.
-   - wlc_view has get/set user_data call, we can use it to setup float/layout
-     info.
-   - views are bounded to monitor, which means I cannot create output for every
-     workspace. I can toggle visibility of all views.
-   what we need:
-   - The double-link data structure
-
-** The data structure for layout
-   seems to be a link list is the best for linear data structures, because we
-   have a view delete method, this method brings a hole to the view array.
-   
-   And another problem, how to focus on the previous client? Clearly the brute
-   force solution is iterating through the list to figure it out? If you want to
-   have O(1) solution, we need a view change buffer.
-
-   I really should implement iterator on the taiwins.
-*** DONE compositor design
-    CLOSED: [2016-09-28 Wed 22:27]
-    + view: use handle_set/get_data to setup a few things,
-    + workspace: a instance of a layout class.
-    + output: a list of workspace
-*** DONE layout method
-    CLOSED: [2016-09-28 Wed 22:27]
-    I chose to implement in c++ classes and exposes c-api outside. Which allows
-    me implement different re-layout method for free. Be careful with
-    compatibility between c and c++ functions.
-
-    So far, I implemented:
-    + floating layout method.
-    + dwm-like layout method.
+  + pointer(mouse)
+  + touch
     
+* WM implementation
+  what we have:
+  - wlc_handler: output, view, almost everything is a handler.
+  - wlc_view has get/set user_data call, we can use it to setup float/layout
+    info.
+  - views are bounded to monitor, which means I cannot create output for every
+    workspace. I can toggle visibility of all views.
+  what we need:
+  - The double-link data structure
+
+* The data structure for layout
+  seems to be a link list is the best for linear data structures, because we
+  have a view delete method, this method brings a hole to the view array.
+  
+  And another problem, how to focus on the previous client? Clearly the brute
+  force solution is iterating through the list to figure it out? If you want to
+  have O(1) solution, we need a view change buffer.
+
+  I really should implement iterator on the taiwins.
+** DONE compositor design
+   CLOSED: [2016-09-28 Wed 22:27]
+   + view: use handle_set/get_data to setup a few things,
+   + workspace: a instance of a layout class.
+   + output: a list of workspace
+** DONE layout method
+   CLOSED: [2016-09-28 Wed 22:27]
+   I chose to implement in c++ classes and exposes c-api outside. Which allows
+   me implement different re-layout method for free. Be careful with
+   compatibility between c and c++ functions.
+
+   So far, I implemented:
+   + floating layout method.
+   + dwm-like layout method.
+   

@@ -1,8 +1,11 @@
 #include <string.h>
 #include <stdlib.h>
+
+//this is a hack
+#include "wayland.h"
 #include <wayland-client.h>
 
-#include "wayland.h"
+
 
 //There are quite a few things you need to implement here it looks like for one
 //type of client, you need to register specific globals for it, I think I can
@@ -19,8 +22,6 @@ register_globals(void *data, struct wl_registry *registry,
 		reg->compositor = (struct wl_compositor *)wl_registry_bind(registry, id, &wl_compositor_interface, version);
 	else if (strcmp(interface, wl_shm_interface.name) == 0)
 		reg->shm = (struct wl_shm *)wl_registry_bind(registry, id, &wl_shm_interface, version);
-	else if (strcmp(interface, wl_output_interface.name) == 0)
-		return; //you need to register every outputs
 
 	//register client specific code
 	if (reg->registre)

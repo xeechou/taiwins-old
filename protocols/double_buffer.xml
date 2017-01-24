@@ -1,0 +1,49 @@
+<protocol name="Double Buffer">
+  
+  <interface name="dbuffer" version="1">
+    <description summary="A double buffer protocol that share buffer among
+			  clients and server">
+      Sharing memory is needed for the compositor and client, however we need
+      double buffered sharing, since the buffers are most likely used for
+      rendering. the buffer are passed through the wl_shm_pool protocol
+
+      Version 0 works in Producer/Consumer model.
+    </description>
+
+    <request name="post_buffer">
+      <description summary="tell the consumer about the new buffer">
+      </description>
+      <arg name="buffer" type="object" interface="wl_shm_pool"/>
+
+    </request>
+
+    <request name="switch_buffer">
+      <description summary="you need to switch buffer from the last one">
+	consumer only see an area of buffer at a time, this call means a new
+	buffer is ready to be used
+      </description>
+      <arg name="buffer" type="object" interface="wl_shm_pool"/>
+      <arg name="offset" type="uint"/>
+      <arg name="size"   type="uint"/>
+    </request>
+
+  </interface>
+  <!--
+  <interface name="screensaver" version="1">
+    <description summary="interface for implementing screensavers">
+      Only one client can bind this interface at a time.
+    </description>
+
+    <request name="set_surface">
+      <description summary="set the surface type as a screensaver">
+	A screensaver surface is normally hidden, and only visible after an
+        idle timeout.
+      </description>
+
+      <arg name="surface" type="object" interface="wl_surface"/>
+      <arg name="output" type="object" interface="wl_output"/>
+    </request>
+
+</interface>
+-->
+</protocol>

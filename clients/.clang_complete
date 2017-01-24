@@ -1,1 +1,3 @@
+-I../libs/common/
 -I../build/protocols/
+-I../include/
