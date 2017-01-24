@@ -1,3 +1,5 @@
+##Do experiment on mmap
+
 ##how to let client connect to it.
 
 Wayland protocol is message based, a message from server to client is event. a

@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <wlc/wlc.h>
-#include <wayland-util.h>
+//#include <wayland-util.h>
 typedef wlc_handle tw_handle;
 typedef struct wlc_size  tw_size;
 typedef struct wlc_point tw_point;
@@ -74,14 +74,38 @@ bool tw_darray_swap(tw_darray*, size_t locl, size_t locr);
 	     index < (arr)->size;					\
 	     (ptr) = (char *)(arr)->data + (( ((arr)->header+ (++index)) % (arr)->alloc ) * (arr)->esize) )
 
+
+//wayland list is actually different than I thought, the head is just for occupy
+//one position, this is actually better, you don't ever need to update header,
+//traversal is simpler, and you wont run into segment fault. I will need to use
+//this implementation later.
+
 /**
  * @brief double-link list
  *
- * quick and nasty
+ * purely header implemenation?
  */
-typedef struct wl_list tw_list;
-#define tw_container_of(ptr, sample, member) wl_container_of(ptr, sample, member)
+typedef struct tw_list {
+	struct tw_list *prev;
+	struct tw_list *next;
+} tw_list;
 
+#define tw_container_of(ptr, sample, member)				\
+	(__typeof__(sample))((char *)(ptr) -				\
+			     offsetof(__typeof__(*sample), member))
+
+
+#define tw_list_for_each(pos, head, member)				\
+	for (pos = wl_container_of((head)->next, pos, member);	\
+	     &pos->member != (head);					\
+	     pos = tw_container_of(pos->member.next, pos, member))
+
+#define tw_list_for_each_safe(pos, tmp, head, member)			\
+	for (pos = wl_container_of((head)->next, pos, member),		\
+	     tmp = wl_container_of((pos)->member.next, tmp, member);	\
+	     &pos->member != (head);					\
+	     pos = tmp,							\
+	     tmp = tw_container_of(pos->member.next, tmp, member))
 
 /* append @other to @list */
 static inline void
@@ -177,11 +201,68 @@ tw_list_remove_update(tw_list **header, tw_list *elem)
 		*header = NULL;
 }
 
-#define tw_list_insert wl_list_insert
-#define tw_list_init  wl_list_init
+static inline void
+tw_list_init(tw_list *list)
+{
+	list->prev = list;
+	list->next = list;
+}
 
-#define tw_list_length wl_list_length
-#define tw_list_empty wl_list_empty
-#define tw_list_insert_list wl_list_insert_list
+//this is actually inserting to the first, if you have a header.
+static inline void
+tw_list_insert(tw_list *list, tw_list *elm)
+{
+	elm->prev = list;
+	elm->next = list->next;
+	list->next = elm;
+	elm->next->prev = elm;
+}
 
-#endif
+
+static inline void
+tw_list_remove(tw_list *elm)
+{
+	elm->prev->next = elm->next;
+	elm->next->prev = elm->prev;
+	elm->next = NULL;
+	elm->prev = NULL;
+}
+
+static inline int
+tw_list_length(const tw_list *list)
+{
+	tw_list *e;
+	int count;
+
+	if (!list)
+		return 0;
+	count = 1;
+	e = list->next;
+	while (e != list) {
+		e = e->next;
+		count++;
+	}
+
+	return count;
+}
+
+static inline int
+tw_list_empty(const tw_list *list)
+{
+	return (!list);
+}
+
+static inline void
+tw_list_insert_list(tw_list *list, tw_list *other)
+{
+	if (tw_list_empty(other))
+		return;
+
+	other->next->prev = list;
+	other->prev->next = list->next;
+	list->next->prev = other->prev;
+	list->next = other->next;
+}
+
+
+#endif /* EOF */
