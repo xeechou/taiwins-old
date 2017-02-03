@@ -7,7 +7,6 @@
 ///////////////////////////builtin static functions/////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-
 /**
  * 
  * @brief the simple floating windows relayout strategy, which is actually
@@ -106,7 +105,8 @@ Layout::update_views(void)
 	if ( !(views = (tw_handle *)malloc(sizeof(tw_handle) * nviews)) )
 		return false;
 
-	tw_list *l = this->header;//header is after deleting to one view
+	
+	tw_list *l = this->header.next;
 	for (size_t i = 0; i < nviews; i++) {
 		views[i] = ((view_list *)tw_container_of(l, (view_list *)0, link))->view;
 		l = l->next;
@@ -123,14 +123,13 @@ Layout::getViewLoc(const tw_handle view)
 	}
 	return -1;
 }
-//view behavior changes, now treat offset as an abs value,
-//in the future version, make offset to int value which specific the direction
+
+
 const tw_handle
 Layout::getViewOffset(const tw_handle view, size_t offset)
 {
 	size_t ind = getViewLoc(view);
-	//fprintf(debug_file, "WE WANT TO GET OFFSET %d, nviews: %d, loc: %d \n", offset, nviews, ind);
-	//fflush(debug_file);
+	//debug_log("WE WANT TO GET OFFSET %d, nviews: %d, loc: %d \n", offset, nviews, ind);
 	size_t right_offset = ind + offset;
 	int    left_offset = ind - offset;
 	if (right_offset < nviews)
@@ -150,10 +149,10 @@ Layout::getViewOffset(const tw_handle view, size_t offset)
 ///////////////////////////Master Layout///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
 
-
+//maybe we don't need this one
 int MasterLayout::getViewLoc(const tw_handle view)
 {
-	tw_list *l = header;
+	tw_list *l = this->header.next;
 	for (int i = 0; i < nviews; i++) {
 		const tw_handle v = ((view_list *)tw_container_of(l, (view_list *)0, link))->view;
 		if (view == v)
@@ -175,7 +174,7 @@ MasterLayout::getViewOffset(const tw_handle view, size_t offset)
  * @brief create a array of current views.
  * this code was buggy before, you need to test it somehow
  * now it works. There should be no problems for it right now
- */
+
 tw_handle *
 MasterLayout::getvarr(void)
 {
@@ -189,13 +188,13 @@ MasterLayout::getvarr(void)
 }
 
 
-/**
- * @brief rm this array after you done relayout.
- */
+
 void MasterLayout::rmvarr(void)
 {
 	free(this->views);
+	this->views = NULL;
 }
+*/
 
 /** 
  * @brief this layout method only update the internal view data structure, it
@@ -217,7 +216,7 @@ bool MasterLayout::createView(tw_handle view)
 	//handle link
 	tw_list_init(l);
 	//append a list to a node make it the header of link
-	tw_list_insert_header(&(this->header), l);
+	tw_list_insert(&(this->header), l);
 
 	//FIXME: we should allow different type of border info
 	view_data->border = &((struct tw_monitor *)
@@ -226,13 +225,15 @@ bool MasterLayout::createView(tw_handle view)
 	wlc_handle_set_user_data(view, view_data);
 	debug_log("done master::createView\n");
 
-	//reference account :p ???
+	//after everything done, you can put it here
 	this->nviews++;
-	
-	if (!this->update_views()) {
-		free(view_data);
-		return false;
-	}
+
+	//this is actually wrong, since if you give up
+	//views, you should have nviews--
+//	if (!this->update_views()) {
+//		free(view_data);
+//		return false;
+//	}
 	return true;
 }
 
@@ -245,13 +246,14 @@ MasterLayout::destroyView(tw_handle view)
 {
 	struct tw_view_data *view_data = (struct tw_view_data *)wlc_handle_get_user_data(view);
 	tw_list *l = &(view_data->link.l.link);
-	tw_list_remove_update(&(this->header), l);
+	tw_list_remove(l);
+//	tw_list_remove_update(&(this->header), l);
 	debug_log("Master destroy View 1\n");
 	this->nviews--;
 	free(view_data);
 	debug_log("Master destroy View 2\n");
 	//call this at last
-	update_views();//we have this problem???
+//	update_views();//we have this problem???
 	debug_log("Master destroy View 3\n");
 }
 
@@ -270,7 +272,7 @@ MasterLayout::relayout(tw_handle output)
 	w = g.size.w,   h = g.size.h;
 //	fprintf(debug_file, "we have %d views to relayout, which is %d\n", wl_list_length(header), nviews);
 //	fflush(debug_file);
-	//TODO delete this line, as you will need to record the views later
+
 	assert(master_size > 0.0 && master_size < 1.0);
 	size_t msize = (size_t)(master_size * ((col_based) ? w : h)); 
 	size_t ninstack = nviews - nfloating;
@@ -320,7 +322,7 @@ MasterLayout::relayout(tw_handle output)
 bool
 FloatingLayout::createView(tw_handle view)
 {
-	debug_log("Floating::createView\n");	
+	debug_log("Floating::createView\n");
 	//pring the view to the front is the problem of relayout
 	struct tw_view_data *view_data = (struct tw_view_data *)malloc(sizeof(struct tw_view_data));
 	if (!view_data)
@@ -340,12 +342,10 @@ FloatingLayout::createView(tw_handle view)
 	debug_log("done Floating::createView\n");
 
 	nviews++;//has to come before update views
-	if (!this->update_views()) {
-		free(view_data);
-		return false;
-	}
-		
-
+//	if (!this->update_views()) {
+//		free(view_data);
+//		return false;
+//	}
 	return true;
 }
 
@@ -354,14 +354,16 @@ void
 FloatingLayout::destroyView(tw_handle view)
 {
 	struct tw_view_data *view_data = (struct tw_view_data *)wlc_handle_get_user_data(view);
+
 	tw_list *l = &(view_data->link.l.link);
-	tw_list_remove_update(&(this->header), l);
+	tw_list_remove(l);
+//	tw_list_remove_update(&(this->header), l);
 	debug_log("Floating destroy View 1\n");
 	this->nviews--;
 	free(view_data);
 	debug_log("Floating destroy View 2\n");
 	//call this at last
-	update_views();
+//	update_views();
 	debug_log("Floating destroy View end\n");
 	
 }
@@ -433,7 +435,7 @@ bool view_created(tw_handle view)
 							      //has one layout
 	if (!layout->createView(view))
 		return false;
-
+	layout->update_views();
 	//1): setting up the view visibility attributes, focus attributes, etc.
 	wlc_view_set_mask(view, wlc_output_get_mask(output));
 	wlc_view_bring_to_front(view); //you have to call it for float layout
@@ -458,6 +460,7 @@ void view_destroyed(tw_handle view)
 	pview = layout->getViewOffset(view, 1);//get next view...
 	//pview1 = layout->getViewOffset(view, -1), chose one from them
 	layout->destroyView(view);//we have problems here!
+	layout->update_views();
 	wlc_view_focus(pview);
 	relayout(wlc_view_get_output(view));
 }

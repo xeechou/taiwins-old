@@ -123,8 +123,9 @@ protected:
 	
 	//the array type of views, this array should always be available
 	tw_handle *views;
-	//I should make it to tw_list header
-	tw_list *header; //master-layout is implemented with link list
+
+	//double link list for headers
+	tw_list header;
 
 	int offset_next;
 public:
@@ -138,19 +139,24 @@ public:
 	///return the location of the view, here it use brute force
 	virtual int getViewLoc(const tw_handle view);
 
-	//return a view by the offset, search in both directions since offset is
-	//an abs value
+	/**
+	 * @brief get a tw_handle relates to certain @offset of view
+	 *
+	 * search on the forwards first, if not found, search backwards
+	 */
 	virtual const tw_handle getViewOffset(const tw_handle view, size_t offset);
 	///the subclass need to override if they operate on different data type.
 };
 
 /* the pure floating layout, no stacked/titing window exists */
 class FloatingLayout : public Layout {
-	/* because of the destroy option, link list seems to be the best data structure all the time */
-	//floating layout will still use the tw_list as view data structures. It
-	//now support swap, delete functions, all in O(1).
 public:
-	FloatingLayout(tw_handle output) {this->nviews = 0; this->views = NULL; this->monitor = output; this->header = NULL;}
+	FloatingLayout(tw_handle output) {
+		this->nviews = 0;
+		this->views = NULL;
+		this->monitor = output;
+		tw_list_init(&this->header);
+	}
 	bool createView(tw_handle view);
 	void relayout(tw_handle output);
 	void destroyView(tw_handle view);
@@ -172,14 +178,15 @@ class MasterLayout : public Layout {
 	size_t nfloating;
 
 	//deprecated methods
-	tw_handle *getvarr(void); //if you
-	void rmvarr(void);
+//	tw_handle *getvarr(void);
+//	void rmvarr(void);
 
 public:
 	MasterLayout(tw_handle output) :
 		col_based(true), nmaster(2), master_size(0.5), nfloating(0)
 	{
-		this->monitor = output; this->header = NULL;
+		tw_list_init(&this->header);
+		this->monitor = output;
 		this->nviews = 0; this->views = NULL;
 	}
 	void relayout(tw_handle output);
@@ -188,7 +195,6 @@ public:
 
 	int getViewLoc(const tw_handle view);
 	const tw_handle getViewOffset(const tw_handle, size_t);
-
 };
 
 

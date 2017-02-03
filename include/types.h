@@ -150,30 +150,27 @@ tw_list_swap_header_update(tw_list **header, tw_list *another)
 	*header = another;
 }
 
+/**
+ * insert an element at the end of a list,
+ */
 static inline void
-tw_list_append_elem(tw_list **header, tw_list *elem)
+tw_list_append_elem(tw_list *header, tw_list *elem)
 {
-	//we somehow assume elem is always valid, header is valid, but *header maynot
-	//it will casue problem if header is null
-	if (! (*header) ) {
-		*header = elem;
-		return;
-	}
 	//append a elem to the the list is actually just insert it before header
-	(*header)->prev->next = elem;
-	elem->prev = (*header)->prev;
-	(*header)->prev = elem;
-	elem->next = *header;
+	header->prev->next = elem;
+	elem->prev = header->prev;
+	header->prev = elem;
+	elem->next = header;
 }
 
 /* Insert a new header to the tw_list @header */
-static inline void
-tw_list_insert_header(tw_list **header, tw_list *elem)
-{
-	tw_list_append_elem(header, elem);
-	*header = elem;
-}
-
+//static inline void
+//tw_list_insert_header(tw_list **header, tw_list *elem)
+//{
+//	tw_list_append_elem(header, elem);
+//	*header = elem;
+//}
+/*
 static inline void
 tw_list_remove_update(tw_list **header, tw_list *elem)
 {
@@ -195,6 +192,7 @@ tw_list_remove_update(tw_list **header, tw_list *elem)
 	if (elem->next == elem)
 		*header = NULL;
 }
+*/
 
 static inline void
 tw_list_init(tw_list *list)
@@ -203,7 +201,7 @@ tw_list_init(tw_list *list)
 	list->next = list;
 }
 
-//insert behind to list
+//insert after the elem
 static inline void
 tw_list_insert(tw_list *list, tw_list *elm)
 {
@@ -240,21 +238,21 @@ tw_list_length(const tw_list *list)
 }
 
 static inline int
-tw_list_empty(const tw_list *list)
+tw_list_empty(const tw_list *header)
 {
-	return list->next == list;
+	return header->next == header;
 }
 
 static inline void
-tw_list_insert_list(tw_list *list, tw_list *other)
+tw_list_insert_list(tw_list *header, tw_list *other)
 {
 	if (tw_list_empty(other))
 		return;
 
-	other->next->prev = list;
-	other->prev->next = list->next;
-	list->next->prev = other->prev;
-	list->next = other->next;
+	other->next->prev = header;
+	other->prev->next = header->next;
+	header->next->prev = other->prev;
+	header->next = other->next;
 }
 
 #endif /* EOF */
