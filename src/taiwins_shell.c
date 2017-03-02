@@ -15,42 +15,72 @@ extern "C" {
 #endif 
 
 
-//we need to rename this data structure, since the work we need is a render surface
-struct nonapp_surface_data {
+ //we need to rename this data structure, since the work we need is a render surface
+struct nonapp_surface {
 	tw_list node;
 	struct wl_resource *wl_buffer;
+	struct wl_resource *surface;
+	struct wl_resource *output;
+	int type;
 };
+
+	//this may not be a good idea.
+//struct wl_surface_interface nonapp_surface_impl = {
+	
+//};
+//you probably need to create a draw call for the 	
+struct wl_resource *TMP_DATA[3];
 	
 static void
 nonapp_surface_registre(struct wl_client *client,
-			struct wl_resource *resource,
+			struct wl_resource *resource,//nonapp_surface_object
 			struct wl_resource *output,
 			struct wl_resource *surface,
-			struct wl_resource *buffer,			
-			int32_t x,
-			int32_t y, 
-			int32_t width,
-			int32_t height,
+			struct wl_resource *buffer,
 			uint32_t type)
 {
-	struct nonapp_surface_data *d = (struct nonapp_surface_data *)wl_resource_get_user_data(resource);
-	{//destroying the old stuff
-		//weird thing here that I don't need to 
-		if (d->wl_buffer)
-			wl_resource_destroy(d->wl_buffer);
-		d->wl_buffer = buffer;
-	}
+	struct nonapp_surface *d = (struct nonapp_surface *)wl_resource_get_user_data(resource);
+	d->wl_buffer = buffer;
+	d->surface   = surface;
+	d->output    = output;
 
 	debug_log("The resource should correspond to create nonappsurface %p\n", resource);
-	//here I should identify resource, if it is registered?
-//	debug_log("NON-APP SURFACE: register surface starts at (%d, %d)\n", x, y);
-//	debug_log("with geometry (%d, %d)\n", width, height);
+
 	struct wl_shm_buffer *wl_buffer = wl_shm_buffer_get(buffer);
-
-
 	
 	wl_shm_buffer_begin_access(wl_buffer);
 	void *data = wl_shm_buffer_get_data(wl_buffer);
+	//there should be NULL
+	void *data1 = wl_resource_get_user_data(output);
+	//the thing here is we want to be able to setup the wl_surface, so maybe it has 
+	if (type == NONAPP_SURFACE_STAGE_BACKGROUND)
+		TMP_DATA[0] = surface;
+	else if (type == NONAPP_SURFACE_STAGE_PANEL)
+		TMP_DATA[1] = surface;
+	else if (type == NONAPP_SURFACE_STAGE_LOCK)
+		TMP_DATA[2] = surface;
+//	wlc_handle view = wlc_view_from_surface(
+//		wlc_resource_from_wl_surface_resource(surface),
+//		client,
+//		&wl_surface_interface, NULL, 1, wl_resource_get_id(surface), NULL);
+	//we are kind of stuck here, because the surface itself gets connected
+	//to the internal compositor, if you change it, you will have big
+	//trouble, unless you want to implement your own surface protocol, but I guess you wouldn't succeed
+	
+	//this gives you 0
+//	wlc_handle view = wlc_handle_from_wl_surface_resource(surface);
+//	if (!view)
+//		debug_log("Oh, no, there is no handle!!!");
+
+	//so here we are tring to get a handle, so we wil know how to range the 
+	
+//	wlc_view_from_surface(wlc_resource_from_wl_surface_resource(surface),
+//			      client,
+//			      const struct wl_interface *interface,
+//			      const void *implementation,
+//			      uint32_t version,
+//			      uint32_t id,
+//			      void *userdata);
 //	if (strcmp((const char *)data, "this is only a test"))
 //		debug_log("the data is not correct!!!\n");
 	//creating surface
@@ -60,10 +90,10 @@ nonapp_surface_registre(struct wl_client *client,
 }
 	
 static void
-nonapp_surface_desctroy(struct wl_resource *resource)
+nonapp_surface_destroy(struct wl_resource *resource)
 {
-	struct nonapp_surface_data *data = wl_resource_get_user_data(resource);
-	wl_resource_destroy(data->wl_buffer);
+	struct nonapp_surface *data = wl_resource_get_user_data(resource);
+//	wl_resource_destroy(data->wl_buffer);
 	free(data);
 }
 
@@ -72,7 +102,7 @@ static struct nonapp_surface_interface nonapp_surface_impl = {
 	.registre = nonapp_surface_registre
 };
 
-	
+	//why don't you put the type data here?
 static void taiwins_create_nonapp_surface(struct wl_client *client,
 					  struct wl_resource *resource,
 					  struct wl_resource *output,
@@ -84,8 +114,8 @@ static void taiwins_create_nonapp_surface(struct wl_client *client,
 		wl_client_post_no_memory(client);
 		return;
 	}
-	struct nonapp_surface_data *data = calloc(1, sizeof(*data));
-	wl_resource_set_implementation(r, &nonapp_surface_impl, data, nonapp_surface_desctroy);
+	struct nonapp_surface *data = calloc(1, sizeof(*data));
+	wl_resource_set_implementation(r, &nonapp_surface_impl, data, nonapp_surface_destroy);
 	//TODO: get the render queue and push everything there
 	debug_log("If I succeed, we should have a resource %p\n", r);    	
 }

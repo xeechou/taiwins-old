@@ -1,4 +1,5 @@
 #include <wlc/wlc.h>
+#include <wlc/wlc-wayland.h>
 #include <types.h>
 #include "handlers.h"
 #include "wm.h"
@@ -6,7 +7,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////builtin static functions/////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
-
+extern struct wl_resource *TMP_DATA[3];
 /**
  * 
  * @brief the simple floating windows relayout strategy, which is actually
@@ -109,6 +110,9 @@ Layout::update_views(void)
 	tw_list *l = this->header.next;
 	for (size_t i = 0; i < nviews; i++) {
 		views[i] = ((view_list *)tw_container_of(l, (view_list *)0, link))->view;
+		//there are something with the surface... you can't get access to it...
+//		debug_log("UPDATE VIEW: The data for the surface:%p \n", wl_resource_get_user_data(
+//				  wlc_surface_get_wl_resource(wlc_view_get_surface(views[i]))));
 		l = l->next;
 	}
 	return true;
@@ -253,7 +257,6 @@ MasterLayout::destroyView(tw_handle view)
 	free(view_data);
 	debug_log("Master destroy View 2\n");
 	//call this at last
-//	update_views();//we have this problem???
 	debug_log("Master destroy View 3\n");
 }
 
@@ -433,12 +436,21 @@ bool view_created(tw_handle view)
 							      //Null, one output
 							      //should at least
 							      //has one layout
+	struct wl_resource *surface = wlc_surface_get_wl_resource(wlc_view_get_surface(view));
+	if (TMP_DATA[0] == surface)
+		debug_log("BG_VIEW created\n");
+	else if (TMP_DATA[1] == surface)
+		debug_log("PANEL_VIEW created\n");
+	else if (TMP_DATA[2] == surface)
+		debug_log("LOCK_VIEW created\n");
+	
 	if (!layout->createView(view))
 		return false;
+	//call update view
 	layout->update_views();
 	//1): setting up the view visibility attributes, focus attributes, etc.
 	wlc_view_set_mask(view, wlc_output_get_mask(output));
-	wlc_view_bring_to_front(view); //you have to call it for float layout
+	wlc_view_bring_to_front(view); //you have to call it at floating layout
 	wlc_view_focus(view);
 	//2): relayout
 	relayout(wlc_view_get_output(view));
@@ -457,9 +469,11 @@ void view_destroyed(tw_handle view)
 	layout = tw_output_get_current_layout(output);
 
 	//TODO: we need to come up with a constant value for next view
-	pview = layout->getViewOffset(view, 1);//get next view...
-	//pview1 = layout->getViewOffset(view, -1), chose one from them
-	layout->destroyView(view);//we have problems here!
+	pview = layout->getViewOffset(view, 1);//get next view that may comes avaliable
+
+	layout->destroyView(view);
+	
+	//call update view here so we don't need to call in every subclass
 	layout->update_views();
 	wlc_view_focus(pview);
 	relayout(wlc_view_get_output(view));

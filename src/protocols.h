@@ -3,7 +3,7 @@
 
 #include <wlc/wlc.h>
 #include <wayland-server.h>
-#include <types.h>
+//#include <types.h>
 
 #ifdef __cplusplus
 #define EXTERNC extern "C"

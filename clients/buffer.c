@@ -21,10 +21,26 @@ int create_buffer(int size)
 	const char *path = getenv("XDG_RUNTIME_DIR");
 	char fname[strlen(path) + strlen(template_fname) + 1];
 	int fd;
-	
+
 	sprintf(fname, "%s%s", path, template_fname);
-	if ((fd = mkostemp(fname, O_CLOEXEC)) < 0)
-		return -1;
+#ifdef  HAVE_MKOSTEMP		
+	fd = mkostemp(fname, O_CLOEXEC);
+	if (fd > 0)
+		unlink(fname);
+	else
+		return fd;
+#else
+	fd = mkstemp(fname);
+	if (fd > 0) {
+		unlink(fname);
+		long flags = fcntl(fd, F_GETFD);
+		if (fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1) {
+			close(fd);
+			fd = -1;
+		}
+	} else
+		return fd;
+#endif
 	if (ftruncate(fd, size) < 0) {
 		close(fd);
 		return -1;
