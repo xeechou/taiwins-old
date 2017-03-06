@@ -11,12 +11,12 @@
 
 int main(void)
 {
-	int fd = create_buffer(2012);
+	int fd = create_buffer(10000);
 	if (fd < 0)
 		return -1;
 	void *buffer = mmap(NULL, 900, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-	void *buffer1 = mmap(NULL, 1000, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 900);
-	printf("buffer: %p, buffer1: %p\n, the pagesize is %d", buffer, buffer1, getpagesize());
+	void *buffer1 = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 4096);
+	printf("buffer: %p, buffer1: %p\n, the pagesize is %d, the fd is %d\n", buffer, buffer1, getpagesize(),fd);
 
 //	struct sockaddr my_addr;
 

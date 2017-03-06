@@ -82,6 +82,12 @@ output_scale(void *data, struct wl_output *wl_output, int32_t factor)
 	int future_param = 1 - output->curr_param;
 	output->params[future_param].scale = factor;
 }
+void write_pixel_by_geometry(void *data, struct texture_geometry *geo, unsigned int pixel)
+{
+	unsigned int *pixel_p  = (unsigned int *)data;
+	for (int i = 0; i < geo->width * geo->height; i++)
+		*pixel_p++ = pixel;
+}
 
 /**
  * @brief setup a static surface for an output
@@ -131,6 +137,10 @@ int output_set_static(struct static_surface *sur, struct output_elements *elem,
 	fflush(stdout);
 	if (errno)
 		perror("MMAP error occured");
+	//now we can create the// okay, lets filled up the data with the same
+	//value, and lets see whether it works
+	write_pixel_by_geometry(sur->data, &sur->geometry, 0xffffff);
+	
 	//I think the use here is simply just announce wl_buffer, since we can
 	//get the wl_buffer geometry information directly from wl_buffer, the 4 int is unecessary
 	nonapp_surface_registre(sur->na_surface, elem->wl_output, sur->wl_surface, sur->wl_buffer,
@@ -354,6 +364,8 @@ registre_globals(struct wl_registry *registry,
 //thread, there is no other way, all the threads follow
 //"prepare-read-dispatch-flush" procedure, so you can create a template from
 //that. Otherwise, uses a single queue, the problem is that you can't sleep at somewhere.
+
+#include <cairo/cairo.h>
 int main(int argc, char **argv)
 {
 	debug_info = fopen("/tmp/deskop_shell_output", "w");
@@ -363,7 +375,13 @@ int main(int argc, char **argv)
 	struct registry *Registry = client_init(NULL, registre_globals, NULL);
 	//TODO:you need to fix this, the cpu usage is too high
 	//it shouldn't be like this
-
+	
+	//this is your background data, you need to map it to the background surface, so how??
+//	cairo_t *cairo_context;
+//	cairo_surface_t *background_surface = cairo_image_surface_create_from_png(argv[1]);
+//	cairo_context = cairo_create(background_surface);
+//	cairo_surface_get_type(background_surface);
+	
 /*
 	while (wl_display_prepare_read_queue(display, queue) != 0)
 		wl_display_dispatch_queue_pending(display, queue);

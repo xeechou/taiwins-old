@@ -29,7 +29,7 @@ struct nonapp_surface {
 	
 //};
 //you probably need to create a draw call for the 	
-struct wl_resource *TMP_DATA[3];
+struct wl_resource *TMP_DATA[3] = {NULL, NULL, NULL};
 	
 static void
 nonapp_surface_registre(struct wl_client *client,
@@ -59,10 +59,10 @@ nonapp_surface_registre(struct wl_client *client,
 		TMP_DATA[1] = surface;
 	else if (type == NONAPP_SURFACE_STAGE_LOCK)
 		TMP_DATA[2] = surface;
-//	wlc_handle view = wlc_view_from_surface(
-//		wlc_resource_from_wl_surface_resource(surface),
-//		client,
-//		&wl_surface_interface, NULL, 1, wl_resource_get_id(surface), NULL);
+	wlc_handle view = wlc_view_from_surface(
+		wlc_resource_from_wl_surface_resource(surface),
+		NULL,
+		NULL, NULL, 1, wl_resource_get_id(surface), NULL);
 	//we are kind of stuck here, because the surface itself gets connected
 	//to the internal compositor, if you change it, you will have big
 	//trouble, unless you want to implement your own surface protocol, but I guess you wouldn't succeed
