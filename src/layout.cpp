@@ -7,7 +7,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////builtin static functions/////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
-extern struct wl_resource *TMP_DATA[3];
 /**
  * 
  * @brief the simple floating windows relayout strategy, which is actually
@@ -179,25 +178,25 @@ MasterLayout::getViewOffset(const tw_handle view, size_t offset)
  * this code was buggy before, you need to test it somehow
  * now it works. There should be no problems for it right now
 
-tw_handle *
-MasterLayout::getvarr(void)
-{
-	this->views = (tw_handle *)malloc(this->nviews * sizeof(tw_handle));
-	tw_list *l = this->header;
-	for (int i = 0; i < this->nviews; i++) {
-		this->views[i] = ((view_list *)tw_container_of(l, (view_list *)0, link))->view;
-		l = l->next;
-	}
-	return this->views;
-}
+ tw_handle *
+ MasterLayout::getvarr(void)
+ {
+ this->views = (tw_handle *)malloc(this->nviews * sizeof(tw_handle));
+ tw_list *l = this->header;
+ for (int i = 0; i < this->nviews; i++) {
+ this->views[i] = ((view_list *)tw_container_of(l, (view_list *)0, link))->view;
+ l = l->next;
+ }
+ return this->views;
+ }
 
 
 
-void MasterLayout::rmvarr(void)
-{
-	free(this->views);
-	this->views = NULL;
-}
+ void MasterLayout::rmvarr(void)
+ {
+ free(this->views);
+ this->views = NULL;
+ }
 */
 
 /** 
@@ -216,7 +215,7 @@ bool MasterLayout::createView(tw_handle view)
 	view_data->link.l.view = view;
 	tw_list *l = &(view_data->link.l.link);
 	
-	debug_log("master::createView\n");
+	debug_log("master::createView %d\n", view);
 	//handle link
 	tw_list_init(l);
 	//append a list to a node make it the header of link
@@ -414,36 +413,62 @@ tw_view_get_layout(tw_handle view)
 	return tw_output_get_current_layout(wlc_view_get_output(view));
 }
 
+static void
+relayout_static_views(tw_handle output)
+{
+	struct wlc_geometry geo = {0,0, 100, 100};
+	debug_log("before start relayout static view\n");
+	struct tw_monitor *mon = (struct tw_monitor *)wlc_handle_get_user_data(output);
+	for(int i = TW_PARTION-1; i >=0; i--) {
+		wlc_handle view = mon->static_views[i].wlc_view;
+		debug_log("here we just examine the static view %d \n", view);
+		if (!view)
+			continue;
+		wlc_view_set_geometry(view, 0, tw_output_get_geometry(output));
+		//NOTE: it is this that determine whether I am invisible or not
+		debug_log("The mask of the output is ? %d\n", wlc_output_get_mask(output));
+		wlc_view_set_mask(view, wlc_output_get_mask(output));
+		wlc_view_send_to_back(view);
+	}
+	for(int i = TW_PARTION+1; i < TWST_NSTAGES; i++) {
+		wlc_handle view = mon->static_views[i].wlc_view;
+		debug_log("here we just examine the static view %d \n", view);
+		if (!view)
+			continue;
+		wlc_view_set_geometry(view, 0, &geo);
+		wlc_view_bring_to_front(view);
+	}
+}
 
 /////////////////////////////handles//////////////////////
 //the global layout method
-void relayout(tw_handle output)
+TW_EXTERNC void
+relayout(tw_handle output)
 {
 	debug_log("relayouting\n");
 	Layout *current = tw_output_get_current_layout(output);
+	//there is a relayout-prevhook
 	current->relayout(output);
+
+	relayout_static_views(output);
 	debug_log("done relayouting\n");
 }
 
-
-//although
-bool view_created(tw_handle view)
+TW_EXTERNC bool
+view_created(tw_handle view)
 {
 	//routine:
 	//0): create a view: which is most likely insert a node to a list
 	tw_handle output = wlc_view_get_output(view);
-	Layout *layout = tw_output_get_current_layout(output);//it shouldn't be
-							      //Null, one output
-							      //should at least
-							      //has one layout
-	struct wl_resource *surface = wlc_surface_get_wl_resource(wlc_view_get_surface(view));
-	if (TMP_DATA[0] == surface)
-		debug_log("BG_VIEW created\n");
-	else if (TMP_DATA[1] == surface)
-		debug_log("PANEL_VIEW created\n");
-	else if (TMP_DATA[2] == surface)
-		debug_log("LOCK_VIEW created\n");
-	
+	Layout *layout = tw_output_get_current_layout(output);
+
+	struct tw_surface_node *static_view = is_static_view_for_output(view, output);
+	if (static_view) {
+		static_view->wlc_view = view;
+		relayout(output);
+		return true;
+	}
+	//TODO: you need to see if that is a static view or not
 	if (!layout->createView(view))
 		return false;
 	//call update view
@@ -453,26 +478,33 @@ bool view_created(tw_handle view)
 	wlc_view_bring_to_front(view); //you have to call it at floating layout
 	wlc_view_focus(view);
 	//2): relayout
-	relayout(wlc_view_get_output(view));
+	relayout(output);
 	return true;
 }
 
 
-void view_destroyed(tw_handle view)
+TW_EXTERNC void
+view_destroyed(tw_handle view)
 {
 	debug_log("starting destroy view\n");
 	tw_handle output, pview;
 	Layout *layout;
-	//routine:
-	//0): find out the most previous view, I think i3 has a stack that stores all the views you have
 	output = wlc_view_get_output(view);
 	layout = tw_output_get_current_layout(output);
-
+	//if it get diestroyed, then the wl_surface is indeed nil
+	struct tw_surface_node *static_view = is_static_view_for_output(view, output);
+	//routine:
+	//0): find out the most previous view, I think i3 has a stack that stores all the views you have
+	if (static_view != NULL) {
+		//if you destroy a view, wl_surface is 0
+		static_view->wlc_view = 0;
+		static_view->wl_surface = NULL;
+		relayout(output);
+		return;
+	}
 	//TODO: we need to come up with a constant value for next view
 	pview = layout->getViewOffset(view, 1);//get next view that may comes avaliable
-
 	layout->destroyView(view);
-	
 	//call update view here so we don't need to call in every subclass
 	layout->update_views();
 	wlc_view_focus(pview);

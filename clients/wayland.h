@@ -13,6 +13,7 @@ struct registry {
 	struct wl_display *display;
 	struct wl_output **output;
 	struct wl_shm *shm; //tous les plus programe de wayland utilise shm
+	struct wl_shell *shell;
 	
 	// a client may have a custom registering job, usually this function
 	// will be implemented as a static function that manipulate a static

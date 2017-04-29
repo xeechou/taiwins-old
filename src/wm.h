@@ -8,17 +8,15 @@
  */
 
 #include <stdlib.h>
-
 #include <types.h>
 
 /* types used in this place */
 class Layout;
 struct tw_monitor;
+struct wl_resource;
 
-//////////////////////////////////////////////////////////////////////////
-/////////////////////////View specific structures/////////////////////////
-//////////////////////////////////////////////////////////////////////////
 
+//TODO you need house keeping, remove those that we don't need
 enum tw_border_t {
 	TW_BORDER_NONE, /* no border, implementation can be intergraded to TW_BORDER_PIX */
 	TW_BORDER_PIX,  /* a few pixels as border */
@@ -44,6 +42,16 @@ struct view_node {
 };
 
 /**
+ * @brief surface node has a special place to hold wl_surface data structure
+ */
+struct tw_surface_node {
+	tw_list node;
+	struct wl_resource *wl_surface;
+	tw_handle wlc_view;
+};
+
+
+/**
  *
  * @brief the link data structures used for views (maybe also in other dss)
  */
@@ -53,6 +61,14 @@ typedef union view_link {
 	//and others
 } view_link;
 
+enum STATIC_DRAW_STAGES {
+	TW_BACKGROUND = 0,
+	TW_PANEL = 1,
+	TW_PARTION= 2,
+	TW_WIDGET = 3,
+	TW_LOCK = 4,
+	TWST_NSTAGES=5
+};
 
 /**
  * The data that binds to a wlc_view
@@ -70,6 +86,8 @@ struct tw_view_data {
 
 };
 
+
+
 /**
  *
  * @brief, window manager struct, one per output
@@ -77,7 +95,6 @@ struct tw_view_data {
 struct tw_monitor {
 	tw_handle output; ///unique id
 	size_t scale; //scale is for boarders, main-windows, should be either one, two, three
-	
 	//physical attributes
 	tw_geometry geometry; // the valid area for create windows.
 	//and we have a menu, a very powerful one.
@@ -87,15 +104,17 @@ struct tw_monitor {
 	//I should be able to stay on different layout at different monitor
 	Layout **layouts; /* array of layout pointers */
 	size_t lays_recent[2]; /** recent two layouts */
-
 	//init border for the monitor
 	struct tw_border border;
 
-	//the 2D information for this monitor
+	//the position in the global compositor
 	tw_point location;
+	//basically static_view is 
+//	tw_list static_views;
+	struct tw_surface_node static_views[TWST_NSTAGES];
 };
 
-
+struct tw_surface_node *is_static_view_for_output(const tw_handle view, tw_handle output);
 /*** monitor specific apis ***/
 const static inline tw_geometry *
 tw_output_get_geometry(wlc_handle output)

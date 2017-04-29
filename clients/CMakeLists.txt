@@ -1,5 +1,5 @@
 include_directories(
-  ${common_INCLUDE_DIRS}
+  ${common_INCLUDE_DIR}
   ${PROTOCOLS_INCLUDE_DIR}
   ${WLC_INCLUDE_DIRS}
   ${LIBINPUT_INCLUDE_DIRS}

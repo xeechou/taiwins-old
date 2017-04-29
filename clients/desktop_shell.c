@@ -7,10 +7,8 @@
 #include <sys/mman.h>
 #include <wayland-client.h>
 #include <wayland-taiwins_shell-client-protocol.h>
-//#include <types.h>
-#include "../libs/common/types.h"
-/** we could try to implement most of things here
- */
+#include <types.h>
+
 #include "buffer.h"
 #include "wayland.h"
 #include "desktop_shell.h"
@@ -18,14 +16,12 @@
 
 //These are proxy struct, I don't they there is a line like typedef struct wl_proxy taiwins_shell or something;
 
-
-//if You want to make it a singleton, use a static method
-struct wl_surface *Surface;
-
 FILE *debug_info;
 
 static void
-output_init(struct output_elements *output, struct wl_output *wl_output, int id, struct registry *reg)
+output_init(struct output_elements *output,
+	    struct wl_output *wl_output, int id,
+	    struct registry *reg)
 {
 	output->curr_param = 0;
 	output->params[0] = (struct output_geometry){0};
@@ -73,7 +69,6 @@ output_mode(void *data, struct wl_output *wl_output,
 	output->params[future_param].px_height = height;
 }
 
-
 static void
 output_scale(void *data, struct wl_output *wl_output, int32_t factor)
 {
@@ -82,12 +77,33 @@ output_scale(void *data, struct wl_output *wl_output, int32_t factor)
 	int future_param = 1 - output->curr_param;
 	output->params[future_param].scale = factor;
 }
-void write_pixel_by_geometry(void *data, struct texture_geometry *geo, unsigned int pixel)
+
+static void
+write_pixel_by_geometry(void *data, struct texture_geometry *geo, unsigned int pixel)
 {
 	unsigned int *pixel_p  = (unsigned int *)data;
 	for (int i = 0; i < geo->width * geo->height; i++)
 		*pixel_p++ = pixel;
 }
+
+static void
+static_ping(void *data, struct wl_shell_surface *surface, uint32_t serial)
+{
+	wl_shell_surface_pong(surface, serial);
+}
+
+static void
+static_configure(void *data, struct wl_shell_surface *shell_surface,
+			     uint32_t edges, int32_t width, int32_t height)
+{
+	
+}
+
+static const struct wl_shell_surface_listener static_shell_surface_listener = {
+	static_ping,
+	static_configure,
+	NULL
+};	
 
 /**
  * @brief setup a static surface for an output
@@ -95,7 +111,8 @@ void write_pixel_by_geometry(void *data, struct texture_geometry *geo, unsigned 
  * a static surface has just stage(when to draw) and geometry parameters. here we just announce it
  *
  */
-int output_set_static(struct static_surface *sur, struct output_elements *elem,
+int
+output_set_static(struct static_surface *sur, struct output_elements *elem,
 		  int offset)
 {
 	struct taiwins_shell *shell = taiwins_get_shell();
@@ -117,7 +134,7 @@ int output_set_static(struct static_surface *sur, struct output_elements *elem,
 	sur->geometry = texture_geometry_from_ndc(curr_geo,
 						  sur->x, sur->y,
 						  sur->width, sur->height);
-	texture_size = texture_geometry_size(&sur->geometry);
+ 	texture_size = texture_geometry_size(&sur->geometry);
 	sur->fd = create_buffer(texture_size);
 	{
 		struct wl_shm_pool *pool =
@@ -145,6 +162,14 @@ int output_set_static(struct static_surface *sur, struct output_elements *elem,
 	//get the wl_buffer geometry information directly from wl_buffer, the 4 int is unecessary
 	nonapp_surface_registre(sur->na_surface, elem->wl_output, sur->wl_surface, sur->wl_buffer,
 				sur->type);
+
+	//after you prepare everything, you can do it somehow, but lets see if we don't do it first
+	sur->shell_surface = wl_shell_get_shell_surface(sur->output->registry->shell, sur->wl_surface);
+	wl_shell_surface_add_listener(sur->shell_surface, &static_shell_surface_listener, NULL);
+	wl_shell_surface_set_toplevel(sur->shell_surface);
+	//so you did created a few
+	perror("here we should have a view now\n");
+	
 	wl_surface_attach(sur->wl_surface, sur->wl_buffer, 0, 0);
 	wl_surface_damage(sur->wl_surface, 0, 0, sur->geometry.width, sur->geometry.height);
 	//NOTE: this call doesn't work, version since is larger than surface version.
@@ -216,24 +241,30 @@ static void cleanup_output(struct output_elements *elem)
 
 struct desktop_shell {
 	struct taiwins_shell *shell;
-	tw_list *outputs;
+	tw_list outputs;
 
 };
 
 //initialization can be done in this, assignment cant
-static struct desktop_shell Desktop_shell = {0};
+static struct desktop_shell Desktop_shell = {
+	.outputs = {
+		.prev = &Desktop_shell.outputs,
+		.next = &Desktop_shell.outputs
+	},
+	.shell = NULL
+};
 
 int
 taiwins_get_outputs(struct output_elements ***data)
 {
-	int n_outputs = tw_list_length(Desktop_shell.outputs);
+	int n_outputs = tw_list_length(&Desktop_shell.outputs);
 	*data = malloc(sizeof(void *) * n_outputs);
 	struct output_elements **outputs = *data;
 	if (!n_outputs)
 		return 0;
 
 	struct output_elements *output;
-	tw_list_for_each(output, Desktop_shell.outputs, list) {
+	tw_list_for_each(output, &Desktop_shell.outputs, list) {
 		*outputs++ = output;
 //		fprintf(debug_info, "output %p\n", *(outputs - 1));
 //		fflush(debug_info);
@@ -241,7 +272,8 @@ taiwins_get_outputs(struct output_elements ***data)
 	return n_outputs;
 }
 
-void taiwins_add_output(struct output_elements *output)
+void
+taiwins_add_output(struct output_elements *output)
 {
 	tw_list_append_elem(&(Desktop_shell.outputs), &output->list);
 }
@@ -262,7 +294,7 @@ static void
 cleanup_taiwins_shell(void)
 {
 	struct output_elements *tmp;
-	tw_list_for_each(tmp, Desktop_shell.outputs, list)
+	tw_list_for_each(tmp, &Desktop_shell.outputs, list)
 		cleanup_output(tmp);
 }
 

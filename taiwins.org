@@ -1,10 +1,25 @@
-* Problems to tackle down
+* Note
   - Currently clients will receive new montitor plugin event, you need to solve
     it at server side, maybe by setting a active output number? Anyway, this
     should be done one server side.
   - wayland's coordinate system, x is width, y is height
 * TODO-list
-** TODO taiwins shell protocol design and implementations [100%]
+** TODO relayot static windows for output
+** DOIN using ~tw_shell_surface~ to handle the static surfaces.[100%]
+   THIS IS VERY IMPORTANT. It turned out the method works only if you call the
+   program in the same session. This is awkward, we need to implement
+   ~wlc_compositor_ready_cb~ as soon as possible.
+
+   The reason is convenience, ~xdg_shell~ is indeed better(you have pong method in
+   the shell, not surface. But ~wl_shell_surface~ ships with ~wayland-dev~).
+*** DONE figure out how to distinguish static surface view and application views.
+    Using link list on output, or you probably should use array
+    I think you can't set the user data for ~wlc_surface~, or ~wl_surface~. You
+    need to have a check. so ~wl_surface~ resource's user data is set by *wlc*
+    already. ~wlc_resource~ user data is not accessible to you, you want to implement
+    setup the ~tw_resource~ user data?
+*** TODO implement darray data type
+** DONE taiwins shell protocol design and implementations [100%]
    - [X] write dumb wlc-compositor ready callback
    - [X] load client program
    - [X] protocols
@@ -15,7 +30,6 @@
    - [X] get taiwins_shell protocol to work
    - [X] mmap memory to server.
    - [X] the shared memory size is correct
-   - [ ] create render list, to render stuff using pre_render/post_render hook
 
 *** The surface protocol.
     This protocol has quite a few request and a two events. I think you need to
@@ -24,7 +38,7 @@
 *** the subsurface protocol
     I think they are for pop-ups
 *** What is wayland-subpixel? You need to read and 
-
+    sub-pixel is not one you should concern
 ** DONE fix segment fault bug for switch sessions.
    CLOSED: [2016-10-20 Thu 17:52]
    It turned out that everytime you switch session and switch back, the
@@ -40,8 +54,9 @@
 ** DONE background protocol test
    CLOSED: [2016-04-17 Sun 14:59]
 ** DONE renew taiwins repo structure 
-** TODO we really need a extension to support screen down-sampling to different monitors, 
-   imagemagic/graphicsmagic could be a good choice
+** TODO we really need a extension to support screen down-sampling to different monitors.
+   This will be crucial features, you need good image library to figure that out.
+
 * NOTE input handler
 ** TODO we want a feature, use keyboard to guide mouse
 ** TODO design context stack

@@ -7,7 +7,7 @@ include_directories(
 	${LIBINPUT_INCLUDE_DIRS}
 	${CAIRO_INCLUDE_DIRS}
 	${PANGO_INCLUDE_DIRS}
-	${common_INCLUDE_DIRS}
+	${common_INCLUDE_DIR}
 )
 
 
@@ -19,15 +19,15 @@ add_executable(taiwins
   handlers.cpp
   protocols.c
   ###protocols
-  taiwins_shell.c
+  taiwins_shell.cpp
   dummy_shell.c
   )
 
 target_link_libraries(taiwins
-  proto_libraries  
+  proto_libraries
+  ${common_LIBRARY}
   ${WLC_LIBRARIES}
   ${XKBCOMMON_LIBRARIES}
   ${WAYLAND_SERVER_LIBRARIES}
   ${LIBINPUT_LIBRARIES}
-  ${common_LIBRARY}
   )

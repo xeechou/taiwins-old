@@ -86,7 +86,8 @@ texture_geometry_from_ndc(const struct output_geometry *shell_geo,
 	return geo;
 }
 
-////////geometry code
+//A static surface is like static variable, exists across the entire output life
+//time, so a lock cannot be one!
 struct static_surface {
 	struct output_elements *output;
 	enum nonapp_surface_stage type;
@@ -98,6 +99,8 @@ struct static_surface {
 	//wayland data
 	struct wl_surface *wl_surface;
 	struct nonapp_surface *na_surface;
+	//this is a test
+	struct wl_shell_surface *shell_surface;
 	
 	//actual data, every buffer gets alloc a new fd, 
 	int fd;

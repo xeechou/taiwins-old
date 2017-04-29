@@ -11,8 +11,8 @@
  */
 #include <stdlib.h>
 #include <wlc/wlc.h>
+#include <wlc/wlc-wayland.h>
 #include <wlc/geometry.h>
-#include <types.h>
 #include "wm.h"
 
 /* everyone include this */
@@ -73,6 +73,23 @@ void adjust_border(tw_handle view)
 //////////////////////////////////////////////////////////////
 /////////////////////Implementing callbacks///////////////////
 //////////////////////////////////////////////////////////////
+struct tw_surface_node *
+is_static_view_for_output(const tw_handle view, tw_handle output)
+{
+	struct wl_resource *surface = wlc_surface_get_wl_resource(wlc_view_get_surface(view));		
+	struct tw_monitor *mon = (struct tw_monitor *)wlc_handle_get_user_data(output);
+	for (int i = 0; i < TWST_NSTAGES; i++) {
+		struct wl_resource *lsurface = mon->static_views[i].wl_surface;
+		tw_handle lview = mon->static_views[i].wlc_view;
+		if (lsurface == NULL)
+			continue;
+		if (lsurface == surface || lview == view)
+			return &mon->static_views[i];
+	}
+	return NULL;
+}
+
+
 
 //for the debugging purpose
 #include "debug.h"
@@ -96,18 +113,18 @@ output_created(wlc_handle output)
 	mon->geometry.size = *wlc_output_get_resolution(output);
 	mon->nlayouts = 1;
 	mon->layouts = (Layout **)malloc(sizeof(Layout*) * mon->nlayouts);
-
-	//TODO:
-	//change this could later, introducing a switch
+	//TODO, using other layout
 	for (int i = 0; i < mon->nlayouts; i++)
 		mon->layouts[i] = new MasterLayout(output);
-
+	for (int i = 0; i < TWST_NSTAGES; i++) {
+		//so rightnow it is fine, all view is greater than zero
+		mon->static_views[i] = {0};
+	}
 	wlc_handle_set_user_data(output, mon);
-	
 	//you forgot to update these two!!!
 	mon->lays_recent[0] = 0;
 	mon->lays_recent[1] = 0;
-	
+//	tw_list_init(&mon->static_views);
 	debug_log("done creating output\n");
 	return true;
 }

@@ -22,6 +22,8 @@ register_globals(void *data, struct wl_registry *registry,
 		reg->compositor = (struct wl_compositor *)wl_registry_bind(registry, id, &wl_compositor_interface, version);
 	else if (strcmp(interface, wl_shm_interface.name) == 0)
 		reg->shm = (struct wl_shm *)wl_registry_bind(registry, id, &wl_shm_interface, version);
+	else if (strcmp(interface, wl_shell_interface.name) == 0)
+		reg->shell = (struct wl_shell *)wl_registry_bind(registry, id, &wl_shell_interface, version);
 
 	//register client specific code
 	if (reg->registre)

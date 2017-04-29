@@ -346,7 +346,7 @@ main(int argc, char *argv[])
 	wlc_set_keyboard_key_cb(keyboard_key);
 	wlc_set_pointer_button_cb(pointer_button);
 	wlc_set_pointer_motion_cb(pointer_motion);
-	wlc_set_output_render_pre_cb(output_pre_render);
+//	wlc_set_output_render_pre_cb(output_pre_render);
 	//wlc_set_output_render_pre_cb(relayout);
 	//fprintf(stdout, "this line should be printed though\n");
 	if (!wlc_init())
