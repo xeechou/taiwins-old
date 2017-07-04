@@ -427,7 +427,8 @@ int main(int argc, char **argv)
 
 	wl_display_dispatch_queue_pending(display, queue);
 */
-	
+	//you need to find a way to disable lock for now.
+	//you need also find the way to draw.
 	
 	while (wl_display_dispatch(Registry->display) != -1) {
 		//so the logic here: After you you set up the surface, you need

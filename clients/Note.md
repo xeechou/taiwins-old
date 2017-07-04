@@ -1,4 +1,5 @@
-##Do experiment on mmap
+#So far, we've done a output_pre_render version, I need to check whether
+ protocol like shell_surface is good for wallpaper?
 
 ##how to let client connect to it.
 

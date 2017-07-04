@@ -1,32 +1,35 @@
 <protocol name="taiwins">
-
   <interface name="nonapp_surface" version="1">
     <description summary="non application surface">
-      The surface that get drawn at pre-rendering(at button layer) and
-      post-rendering(at top layer) stages, they can optionally be double
-      buffered. If they need to change. 
+      a non application surface is static windows, which means they do not move
+      or scale or close
     </description>
 
     <request name="registre">
       <description summary="register the non-application surface">
-	non-application surfaces have to have a position, call this request
-	before attach/damge/commit routine, otherwise the updating is undefined,
-	for server, it should register a surface to rendering list
+	report the share memory buffer for the static surface to the compositor
       </description>
       <arg name="output" type="object" interface="wl_output"/>
       <arg name="surface" type="object" interface="wl_surface"/>
       <arg name="buffer"  type="object" interface="wl_buffer"/>
-      <arg name="x" type="int"/>
-      <arg name="y" type="int"/>
-      <arg name="width" type="int"/>
-      <arg name="height" type="int"/>
       <arg name="type" type="uint" enum="nonapp_surface.stage"
 	   summary="which layer to draw"/>	
     </request>
 
     <enum name="stage">
-      <entry name="top_layer" value="0"/>
-      <entry name="button_layer" value="1"/>
+      <description summary="stages to draw static surfaces">
+	specific the order of drawing static surfaces. Since there is only
+	send_to_back and bring_to_front api, what we can do is partition the
+	static views, the top view get focused(It can be widget, or lock). This
+	is a copy from the compositor side, whenever there changes, we
+	change here as well.
+      </description>
+      <entry name="background" value="0"/>
+      <entry name="panel" value="1"/>
+      <entry name="partition" value="2"/>
+      <entry name="widget" value="3"/>
+      <entry name="lock" value="4"/>
+      <entry name="nonapp_nstages" value="5"/>
     </enum>
   </interface>
 
@@ -36,7 +39,17 @@
       This protocol does simple things, eventually, this api should be able to
       implement xdg_shell.
     </description>
-    
+
+    <!--
+    <request name="register_static_surface">
+      <description summary="register the static surface(the surface that does
+			    not move and long exists) for example, panel, background, lock, etc"/>
+      <arg name="output" type="object" interface="wl_output"/>
+      <arg name="surface" type="object" interface="wl_surface"/>
+      <arg name="type"   type="uint"/>
+      </request>
+      -->
+    <!-- maybe I should use static_surface, it sounds better? -->
     <request name="create_nonapp_surface">
       <description summary="create a non-application surface">
 	We could create a panel, wallpaper in this way, maybe I should call them
